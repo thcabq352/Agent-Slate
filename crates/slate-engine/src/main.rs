@@ -1,7 +1,7 @@
-//! slate-engine CLI — loopback HTTP control server (default) and future MCP mode.
+//! slate-engine CLI — loopback HTTP control server (default) and stdio MCP.
 
 use clap::{Parser, Subcommand};
-use slate_engine::{http, EngineCtx};
+use slate_engine::{http, mcp, EngineCtx};
 
 #[derive(Parser, Debug)]
 #[command(name = "slate-engine", version, about = "Slate film factory engine")]
@@ -14,7 +14,7 @@ struct Cli {
 enum Commands {
     /// Start loopback HTTP control server (writes control.json descriptor).
     Serve,
-    /// Stdio MCP server (Task 11 — not yet implemented).
+    /// Stdio JSON-RPC MCP server (Hermes / Claude Code).
     Mcp,
 }
 
@@ -30,8 +30,11 @@ async fn main() {
             }
         }
         Commands::Mcp => {
-            eprintln!("slate-engine mcp: not implemented yet (Task 11)");
-            std::process::exit(1);
+            let ctx = EngineCtx::from_env();
+            if let Err(e) = mcp::serve(ctx).await {
+                eprintln!("error: {e}");
+                std::process::exit(1);
+            }
         }
     }
 }

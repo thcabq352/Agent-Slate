@@ -1,4 +1,4 @@
-//! Tool catalog and dispatch for HTTP / MCP (Task 10: health + project list/get only).
+//! Tool catalog and dispatch for HTTP / MCP.
 
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -23,27 +23,38 @@ impl EngineCtx {
     }
 }
 
-/// One entry in the tool catalog returned by `GET /tools`.
+/// One entry in the tool catalog returned by `GET /tools` and MCP `tools/list`.
 #[derive(Debug, Clone, Serialize)]
 pub struct ToolInfo {
     pub name: String,
     pub description: String,
+    #[serde(rename = "inputSchema")]
+    pub input_schema: Value,
 }
 
-/// Catalog of tools exposed in this task (more land in later tasks).
+/// Catalog of tools exposed by the engine (more land in later tasks).
 pub fn catalog() -> Vec<ToolInfo> {
     vec![
         ToolInfo {
             name: "slate_health".into(),
             description: "Report engine, ComfyUI, and brain availability.".into(),
+            input_schema: json!({ "type": "object", "properties": {} }),
         },
         ToolInfo {
             name: "slate_list_projects".into(),
             description: "List Slate projects with scene and shot counts.".into(),
+            input_schema: json!({ "type": "object", "properties": {} }),
         },
         ToolInfo {
             name: "slate_get_project".into(),
             description: "Get a full Slate project document (args: projectId).".into(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "projectId": { "type": "string" }
+                },
+                "required": ["projectId"]
+            }),
         },
     ]
 }
