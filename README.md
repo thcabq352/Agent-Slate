@@ -120,6 +120,8 @@ Binary name: `slate-engine` (release: `target/release/slate-engine`).
 
 **ComfyUI** — default API `http://127.0.0.1:8188`. One GPU owner only; do not stack Video Buddy heavy jobs with Slate generations.
 
+**Vision judge (Ollama)** — quality-gate VL model defaults to **`qwen3.5:9b`** (not bundled). Install with `ollama pull qwen3.5:9b`. Override: `SLATE_JUDGE_MODEL` / `SLATE_JUDGE_ENDPOINT`. `slate_health` reports `vision.ready` and `qualityGate` config. See [`docs/engine.md`](docs/engine.md).
+
 **Dry-run** (no GPU / no Comfy) — skip real generation:
 
 ```bash

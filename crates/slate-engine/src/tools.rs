@@ -56,15 +56,14 @@ impl EngineCtx {
             .ok()
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| slate_comfy::DEFAULT_COMFY_BASE.to_string());
-        let config = EngineConfig {
-            data_dir,
-            comfy_base_url,
-            packs_dir,
-            brain_default: "local".into(),
-            bind: "127.0.0.1".into(),
-            dry_run,
-        };
-        Self::new(config)
+        let mut base = config::load_config();
+        base.data_dir = data_dir;
+        base.comfy_base_url = comfy_base_url;
+        base.packs_dir = packs_dir;
+        base.brain_default = "local".into();
+        base.bind = "127.0.0.1".into();
+        base.dry_run = dry_run;
+        Self::new(base)
     }
 }
 
@@ -202,6 +201,15 @@ async fn slate_health(ctx: &EngineCtx) -> Result<Value, String> {
     let brain = slate_brain::brain_status(None).await;
     let brain_json = serde_json::to_value(&brain).map_err(|e| e.to_string())?;
 
+    let judge = slate_brain::judge_vision_status(
+        Some(ctx.config.judge_endpoint.as_str()),
+        Some(ctx.config.judge_model.as_str()),
+    )
+    .await;
+    let judge_json = serde_json::to_value(&judge).map_err(|e| e.to_string())?;
+    let gate = ctx.config.quality_gate();
+    let gate_json = serde_json::to_value(&gate).map_err(|e| e.to_string())?;
+
     Ok(json!({
         "engine": true,
         "comfy": {
@@ -209,6 +217,8 @@ async fn slate_health(ctx: &EngineCtx) -> Result<Value, String> {
             "url": url,
         },
         "brain": brain_json,
+        "vision": judge_json,
+        "qualityGate": gate_json,
         "dryRun": ctx.config.dry_run,
     }))
 }

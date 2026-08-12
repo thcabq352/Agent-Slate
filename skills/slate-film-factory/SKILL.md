@@ -1,48 +1,52 @@
 ---
 name: slate-film-factory
-description: "One-prompt film factory via slate-engine MCP (Hermes primary front)."
-version: 0.1.0
+description: "One-prompt film factory via slate-engine MCP (plan shots, prompts, ComfyUI packs, vision health)."
+version: 0.1.1
 metadata:
   hermes:
-    tags: [slate, film, comfyui, prompts, mcp]
+    tags: [slate, film, comfyui, prompts, mcp, ollama, vision]
     category: media
-    related_skills: [video-buddy]
 ---
 
 # Slate Film Factory
 
 ## Identity
 - Engine: `cargo run -p slate-engine -- mcp` (or installed `slate-engine mcp`)
-- Repo: https://github.com/thcabq352/slate (maintainer: thcabq352; original Slate by Sam Wasserman, Apache-2.0)
 - Comfy API default: http://127.0.0.1:8188
-- Not Video Buddy — Slate owns multi-shot continuity + project bible; Comfy owns pixels
+- Vision judge (preferred): **qwen3.5:9b** via Ollama — weights not bundled (`ollama pull qwen3.5:9b`)
 
 ## When to use
 - Non-pro: plain-language scene → shots + local generations into a Slate project
 - Multi-shot continuity / prompt bible
+- Agent/automation without the Electron UI
 
 ## When NOT to use
 | Signal | Route |
 |--------|--------|
 | LTX/Wan packs, music video CLI, Video Buddy outputs | video-buddy / master-agent |
 | HyperFrames / brand package | forge profile |
-| No Comfy and no desire to install | plan-only later; health will fail generate |
+| No Comfy and no desire to install | plan/prompts only; generation needs packs |
 
 ## Preflight
-1. Start ComfyUI API on 8188 (e.g. Video Buddy `run_api_8188.bat`)
-2. One GPU owner only — do not stack Video Buddy + Slate heavy jobs
-3. `slate_health` via MCP must show comfy ok + at least one brain
-4. Tool timeout for `slate_film_factory`: ≥ 900s (1800s slow GPU)
+1. Start ComfyUI API on 8188 if generation is required
+2. One GPU owner only — do not stack heavy Comfy jobs
+3. `slate_health` — engine ok; for generation, Comfy ok + brain
+4. For vision gate readiness: `vision.ready` true. Default model **qwen3.5:9b** (override `SLATE_JUDGE_MODEL`). If missing: `ollama pull qwen3.5:9b`
+5. Tool timeout for `slate_film_factory`: ≥ 900s (1800s slow GPU)
 
 ## Primary tool
 `slate_film_factory` { "brief": "…", "pack_id": "default-still", "shot_count": 4 }
 
-Synchronous: blocks until project + takes ready.
+Synchronous: blocks until the run finishes.
+
+Dry-run: `SLATE_DRY_RUN=1` on the engine process.
 
 ## Other tools
 slate_health, slate_status, slate_cancel, slate_list_projects, slate_get_project,
 slate_list_takes, slate_generate_shot
 
-## Register (Hermes)
+## Register (Hermes / MCP)
+```bash
 hermes mcp add slate -- slate-engine mcp
-# or full path to binary
+# or absolute path to target/release/slate-engine
+```

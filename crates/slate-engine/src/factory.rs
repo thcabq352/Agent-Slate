@@ -1357,6 +1357,10 @@ mod tests {
             brain_default: "claude".into(),
             bind: "127.0.0.1".into(),
             dry_run: false,
+            judge_model: slate_brain::DEFAULT_JUDGE_MODEL.into(),
+            judge_endpoint: slate_brain::DEFAULT_OLLAMA_ENDPOINT.into(),
+            judge_pass_threshold: 0.7,
+            judge_max_retries: 2,
         };
         assert_eq!(resolve_brain_backend(&args, &config), Bb::Claude);
         config.brain_default = "codex".into();
