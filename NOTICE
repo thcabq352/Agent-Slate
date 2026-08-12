@@ -7,20 +7,3 @@ redistribute this software or derivative works, you must retain this
 NOTICE file and credit "Sam Wasserman (wassermanproductions.com)" in
 your documentation and any about/credits surface, per Section 4(d) of
 the Apache License 2.0.
-
--------------------------------------------------------------------------------
-This repository is a maintained fork of the upstream project:
-
-  Upstream: https://github.com/wassermanproductions/slate
-  Maintainer of this fork: thcabq352
-  This fork: https://github.com/thcabq352/slate
-
-Additional copyright in modifications and new components in this fork
-(including the Rust slate-engine film-factory crates and related docs):
-
-Copyright 2026 thcabq352
-
-The Apache License 2.0 continues to apply to the complete work. Redistributors
-must retain this NOTICE, the LICENSE file, and the required attribution to
-Sam Wasserman for the original work, and may also credit thcabq352 for
-modifications in this fork.

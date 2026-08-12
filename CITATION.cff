@@ -1,23 +1,17 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it under Apache-2.0 and credit Sam Wasserman (wassermanproductions.com) per NOTICE §4(d). This repository is maintained by thcabq352."
+message: "If you use Slate in your work, please cite it and credit Sam Wasserman (wassermanproductions.com), per the project's NOTICE and Section 4(d) of the Apache License 2.0."
 title: "Slate"
-abstract: "A desktop prompt studio for AI filmmaking: plan shots scene by scene, keep characters, locations, and look consistent, direct coverage and music and voices with a local AI brain, and compile production-ready prompts for any image, video, music, or voice generator. This fork adds a Rust film-factory engine (MCP/Hermes + ComfyUI packs)."
+abstract: "A desktop prompt studio for AI filmmaking: plan shots scene by scene, keep characters, locations, and look consistent, direct coverage and music and voices with a local AI brain, and compile production-ready prompts for any image, video, music, or voice generator (Seedance, Kling, Veo, Midjourney, Flux, Suno, ElevenLabs, and more)."
 type: software
 authors:
   - family-names: "Wasserman"
     given-names: "Sam"
     website: "https://wassermanproductions.com"
-    role: "author"
-  - name: "thcabq352"
-    website: "https://github.com/thcabq352"
-    alias: "thcabq352"
-    role: "maintainer"
-version: "0.3.2"
+version: "0.1.0"
 date-released: "2026-08-04"
 license: "Apache-2.0"
-url: "https://github.com/thcabq352/slate"
-repository-code: "https://github.com/thcabq352/slate"
-repository-artifact: "https://github.com/wassermanproductions/slate"
+url: "https://github.com/wassermanproductions/slate"
+repository-code: "https://github.com/wassermanproductions/slate"
 keywords:
   - filmmaking
   - ai-video
@@ -26,5 +20,3 @@ keywords:
   - screenwriting
   - generative-video
   - mcp
-  - comfyui
-  - hermes

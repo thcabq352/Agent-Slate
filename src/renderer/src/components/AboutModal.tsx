@@ -20,9 +20,7 @@ export default function AboutModal({ onClose }: { onClose(): void }): React.JSX.
             makes the prompts, your generators make the picture and sound.
           </p>
           <p className="about-meta">
-            Version {APP_VERSION} · Apache-2.0
-            <br />
-            Created by Sam Wasserman · Maintained by thcabq352
+            Version {APP_VERSION} · Apache-2.0 · Created by Sam Wasserman
             <br />
             Brain: your Claude Code or Codex sign-in, or a local model — no API keys.
             <br />
@@ -32,10 +30,6 @@ export default function AboutModal({ onClose }: { onClose(): void }): React.JSX.
             ·{' '}
             <a href="https://wasserman.ai" target="_blank" rel="noreferrer">
               wasserman.ai
-            </a>{' '}
-            ·{' '}
-            <a href="https://github.com/thcabq352/slate" target="_blank" rel="noreferrer">
-              github.com/thcabq352/slate
             </a>
           </p>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>

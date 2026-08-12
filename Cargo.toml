@@ -11,8 +11,4 @@ members = [
 edition = "2021"
 license = "Apache-2.0"
 version = "0.1.0"
-# Original Slate copyright: Sam Wasserman (see NOTICE). Maintainer of this fork: thcabq352.
-authors = ["Sam Wasserman", "thcabq352"]
-repository = "https://github.com/thcabq352/slate"
-homepage = "https://github.com/thcabq352/slate"
-documentation = "https://github.com/thcabq352/slate#readme"
+authors = ["Sam Wasserman"]
