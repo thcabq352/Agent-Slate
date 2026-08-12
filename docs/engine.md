@@ -53,8 +53,18 @@ Image inputs for local brains already use OpenAI multimodal `image_url` (base64)
 | `slate_generate_shot` | Re-roll one shot with quality-gate retries |
 | `slate_judge_take` | Score a media file only (`mediaPath`, optional `prompt` / `continuity`) |
 | `slate_first_ad` | First AD turn: plan/mutate project (`projectId`, `message`, `history?`) + continuity book |
+| `slate_note_write` | Write atomic note (`projectId`, `kind`, `title`, `body`, tags/scene/shot optional) |
+| `slate_note_search` | Search notes (`projectId`, `query?`, `kind?`, …) |
 | `slate_list_projects` / `slate_get_project` / `slate_list_takes` | Store |
 | `slate_status` / `slate_cancel` | Job control (+ continuitySummary, scenePlan, lastShotId) |
+
+### Atomic Notes (Phase 4)
+
+Project-local memory at `{projectDir}/.notes/notes.jsonl` (JSON lines). Kinds:
+
+`continuity` · `shot_decision` · `quality_feedback` · `scene_plan` · `general`
+
+Factory auto-writes quality + handoff notes after each take. First AD reads recent notes into the prompt and writes scene_plan / continuity locks. No model weights involved.
 
 ### Scene continuity (Phase 3)
 

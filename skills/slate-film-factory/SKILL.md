@@ -49,6 +49,8 @@ After generate, the engine runs a **quality gate** (Ollama VL). Failures auto-re
 
 **First AD:** `slate_first_ad` `{ "projectId", "message", "history"? }` plans/mutates the project and returns a continuity book + receipts. Factory generate accumulates continuity across shots for the judge.
 
+**Atomic Notes:** `slate_note_write` / `slate_note_search` — project memory under `.notes/notes.jsonl` (continuity, quality, scene plans). Auto-written on generate/First AD.
+
 ## Register (Hermes / MCP)
 ```bash
 hermes mcp add slate -- slate-engine mcp

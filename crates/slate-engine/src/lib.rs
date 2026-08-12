@@ -9,6 +9,7 @@ pub mod factory;
 pub mod first_ad;
 pub mod http;
 pub mod mcp;
+pub mod notes;
 pub mod prompts;
 pub mod quality_gate;
 pub mod tools;

@@ -195,6 +195,42 @@ pub fn catalog() -> Vec<ToolInfo> {
             }),
         },
         ToolInfo {
+            name: "slate_note_write".into(),
+            description: "Write an atomic note (continuity / quality / plan) for a project.".into(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "projectId": { "type": "string" },
+                    "kind": {
+                        "type": "string",
+                        "description": "continuity | shot_decision | quality_feedback | scene_plan | general"
+                    },
+                    "title": { "type": "string" },
+                    "body": { "type": "string" },
+                    "tags": { "type": "array", "items": { "type": "string" } },
+                    "sceneId": { "type": "string" },
+                    "shotId": { "type": "string" }
+                },
+                "required": ["projectId", "kind", "title", "body"]
+            }),
+        },
+        ToolInfo {
+            name: "slate_note_search".into(),
+            description: "Search atomic notes for a project (query/kind/scene/shot filters).".into(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "projectId": { "type": "string" },
+                    "query": { "type": "string" },
+                    "kind": { "type": "string" },
+                    "sceneId": { "type": "string" },
+                    "shotId": { "type": "string" },
+                    "limit": { "type": "integer" }
+                },
+                "required": ["projectId"]
+            }),
+        },
+        ToolInfo {
             name: "slate_list_takes".into(),
             description: "List take media for a project (optional shotId filter).".into(),
             input_schema: json!({
@@ -229,6 +265,8 @@ pub async fn invoke(tool: &str, args: Value, ctx: &EngineCtx) -> Result<Value, S
         "slate_generate_shot" => slate_generate_shot(ctx, args).await,
         "slate_judge_take" => slate_judge_take(ctx, args).await,
         "slate_first_ad" => slate_first_ad(ctx, args).await,
+        "slate_note_write" => slate_note_write(args),
+        "slate_note_search" => slate_note_search(args),
         "slate_list_takes" => slate_list_takes(args),
         "slate_cancel" => slate_cancel(ctx),
         "slate_status" => slate_status(ctx),
@@ -452,6 +490,102 @@ async fn slate_first_ad(ctx: &EngineCtx, args: Value) -> Result<Value, String> {
             .unwrap_or_else(|| result.reply.clone()));
     }
     serde_json::to_value(result).map_err(|e| e.to_string())
+}
+
+fn slate_note_write(args: Value) -> Result<Value, String> {
+    use crate::notes::{write_note, NoteWriteArgs};
+
+    let project_id = args
+        .get("projectId")
+        .or_else(|| args.get("project_id"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing required arg: projectId".to_string())?
+        .to_string();
+    let kind = args
+        .get("kind")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing required arg: kind".to_string())?
+        .to_string();
+    let title = args
+        .get("title")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing required arg: title".to_string())?
+        .to_string();
+    let body = args
+        .get("body")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing required arg: body".to_string())?
+        .to_string();
+    let tags = args
+        .get("tags")
+        .and_then(|v| v.as_array())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+    let scene_id = args
+        .get("sceneId")
+        .or_else(|| args.get("scene_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let shot_id = args
+        .get("shotId")
+        .or_else(|| args.get("shot_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let note = write_note(NoteWriteArgs {
+        project_id,
+        kind,
+        title,
+        body,
+        tags,
+        scene_id,
+        shot_id,
+    })?;
+    serde_json::to_value(note).map_err(|e| e.to_string())
+}
+
+fn slate_note_search(args: Value) -> Result<Value, String> {
+    use crate::notes::{search_notes, NoteSearchArgs};
+
+    let project_id = args
+        .get("projectId")
+        .or_else(|| args.get("project_id"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing required arg: projectId".to_string())?
+        .to_string();
+    let query = args
+        .get("query")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let kind = args
+        .get("kind")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let scene_id = args
+        .get("sceneId")
+        .or_else(|| args.get("scene_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let shot_id = args
+        .get("shotId")
+        .or_else(|| args.get("shot_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let limit = args.get("limit").and_then(|v| v.as_u64()).map(|n| n as usize);
+
+    let hits = search_notes(NoteSearchArgs {
+        project_id,
+        query,
+        kind,
+        scene_id,
+        shot_id,
+        limit,
+    })?;
+    serde_json::to_value(hits).map_err(|e| e.to_string())
 }
 
 fn slate_list_takes(args: Value) -> Result<Value, String> {

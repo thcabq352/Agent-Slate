@@ -227,6 +227,7 @@ pub async fn run_first_ad(ctx: &EngineCtx, args: FirstAdArgs) -> FirstAdResult {
 
     let mut continuity = SceneContinuityContext::from_project_scene(&project, 0);
     let inventory = project_inventory(&project);
+    let memory = crate::notes::notes_prompt_block(&project.id, 12);
     let hist = args
         .history
         .iter()
@@ -240,8 +241,9 @@ pub async fn run_first_ad(ctx: &EngineCtx, args: FirstAdArgs) -> FirstAdResult {
         .join("\n\n");
 
     let user = format!(
-        "{inventory}\n\nCONTINUITY BOOK:\n{}\n\n{}\n\nDIRECTOR: {}\n",
+        "{inventory}\n\nCONTINUITY BOOK:\n{}\n\n{}\n{}\n\nDIRECTOR: {}\n",
         continuity.as_prompt_block(),
+        memory,
         if hist.is_empty() {
             String::new()
         } else {
@@ -350,6 +352,31 @@ pub async fn run_first_ad(ctx: &EngineCtx, args: FirstAdArgs) -> FirstAdResult {
             focus_shot_id,
             error: Some(format!("save failed: {e}")),
         };
+    }
+
+    let mut receipts = receipts;
+    let plan_summary = if parsed.scene_plan_summary.is_empty() {
+        parsed.reply.chars().take(80).collect::<String>()
+    } else {
+        parsed.scene_plan_summary.clone()
+    };
+    if crate::notes::note_scene_plan(
+        &project.id,
+        Some(cont.scene_id.as_str()),
+        &plan_summary,
+        &format!("{}\n\n{}", parsed.reply, cont.as_prompt_block()),
+    )
+    .is_ok()
+    {
+        receipts.push("• note: scene_plan recorded".into());
+    }
+    for lock in &cont.locks {
+        let _ = crate::notes::note_continuity(
+            &project.id,
+            Some(&cont.scene_id),
+            "continuity lock",
+            lock,
+        );
     }
 
     FirstAdResult {

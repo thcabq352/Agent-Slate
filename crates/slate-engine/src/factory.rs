@@ -662,7 +662,7 @@ pub async fn generate_shot_take(
     scene_idx: usize,
     shot_idx: usize,
     pack_id: &str,
-    live_continuity: Option<&mut crate::continuity::SceneContinuityContext>,
+    mut live_continuity: Option<&mut crate::continuity::SceneContinuityContext>,
 ) -> Result<GenerateGateResult, String> {
     use crate::continuity::full_continuity_text;
     use crate::quality_gate::{
@@ -818,29 +818,55 @@ pub async fn generate_shot_take(
 
     let path = last_path.ok_or_else(|| "no take path produced".to_string())?;
 
-    if let Some(book) = live_continuity {
-        let (shot_id, shot_name, intent) = {
-            let shot = &project.scenes[scene_idx].shots[shot_idx];
-            (shot.id.clone(), shot.name.clone(), shot.intent.clone())
-        };
-        let handoff = last_quality
-            .as_ref()
-            .map(|q| {
-                if q.summary.is_empty() {
-                    intent.clone()
-                } else {
-                    q.summary.clone()
-                }
-            })
-            .unwrap_or_else(|| intent.clone());
+    let (shot_id_rec, shot_name_rec, intent_rec) = {
+        let shot = &project.scenes[scene_idx].shots[shot_idx];
+        (shot.id.clone(), shot.name.clone(), shot.intent.clone())
+    };
+    let handoff = last_quality
+        .as_ref()
+        .map(|q| {
+            if q.summary.is_empty() {
+                intent_rec.clone()
+            } else {
+                q.summary.clone()
+            }
+        })
+        .unwrap_or_else(|| intent_rec.clone());
+
+    if let Some(book) = live_continuity.as_deref_mut() {
         book.record_shot(
-            &shot_id,
-            &shot_name,
-            &intent,
+            &shot_id_rec,
+            &shot_name_rec,
+            &intent_rec,
             Some(&path.display().to_string()),
             last_quality.as_ref(),
-            handoff,
+            handoff.clone(),
         );
+        let _ = crate::notes::note_continuity(
+            &project.id,
+            Some(&book.scene_id),
+            &format!("handoff after {shot_name_rec}"),
+            &handoff,
+        );
+    }
+
+    // Atomic Notes: quality for this shot
+    if let Some(ref q) = last_quality {
+        let scene_id = project.scenes.get(scene_idx).map(|s| s.id.as_str());
+        if let Err(e) = crate::notes::note_quality(
+            &project.id,
+            scene_id,
+            Some(&shot_id_rec),
+            &shot_name_rec,
+            q.overall,
+            q.accept,
+            &q.summary,
+            &q.issues,
+        ) {
+            receipts.push(format!("• note quality write failed: {e}"));
+        } else {
+            receipts.push("• note: quality_feedback recorded".into());
+        }
     }
 
     Ok(GenerateGateResult {
