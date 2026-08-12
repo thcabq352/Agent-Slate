@@ -8,6 +8,7 @@ pub mod factory;
 pub mod http;
 pub mod mcp;
 pub mod prompts;
+pub mod quality_gate;
 pub mod tools;
 
 pub use config::{apply_env, load_config, EngineConfig};

@@ -43,7 +43,9 @@ Dry-run: `SLATE_DRY_RUN=1` on the engine process.
 
 ## Other tools
 slate_health, slate_status, slate_cancel, slate_list_projects, slate_get_project,
-slate_list_takes, slate_generate_shot
+slate_list_takes, slate_generate_shot, slate_judge_take
+
+After generate, the engine runs a **quality gate** (Ollama VL). Failures auto-retry with seed + prompt pickups until max retries. Check `quality` / `attempts` on shot results.
 
 ## Register (Hermes / MCP)
 ```bash

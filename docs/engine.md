@@ -49,10 +49,22 @@ Image inputs for local brains already use OpenAI multimodal `image_url` (base64)
 | Tool | Notes |
 |------|--------|
 | `slate_health` | Engine + Comfy + brains + **vision/judge** |
-| `slate_film_factory` | Synchronous one-scene pipeline |
-| `slate_generate_shot` | Re-roll one shot |
+| `slate_film_factory` | Synchronous one-scene pipeline (generate + quality gate) |
+| `slate_generate_shot` | Re-roll one shot with quality-gate retries |
+| `slate_judge_take` | Score a media file only (`mediaPath`, optional `prompt` / `continuity`) |
 | `slate_list_projects` / `slate_get_project` / `slate_list_takes` | Store |
 | `slate_status` / `slate_cancel` | Job control |
+
+### Quality gate loop (Phase 2)
+
+After each Comfy take:
+
+1. VL judge (`qwen3.5:9b` preferred) scores visual quality, continuity, artifacts, prompt fidelity.
+2. If **mean ≥ `SLATE_JUDGE_PASS_THRESHOLD`** (default 0.7) → accept (take rating good/circled).
+3. Else apply `retry_hints` into a prompt pickup, new seed, regenerate (up to `SLATE_JUDGE_MAX_RETRIES`).
+4. Dry-run / missing VL / `.txt` takes → gate **skipped** (take kept, `quality` may still be present as skip).
+
+Verdict is stored on the take `notes` line and returned on shot outcomes as `quality` + `attempts`.
 
 ## Comfy packs
 

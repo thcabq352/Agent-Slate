@@ -28,7 +28,7 @@ use slate_brain::{
 use slate_comfy::{generate_to_file, ComfyClient};
 use slate_domain::{
     apply_ad_actions, compile_for_comfy, create_project, open_project, save_project, uid, AdAction,
-    BrainBackend, Project, SpecPatch, Take, TakeRating,
+    BrainBackend, Project, SpecPatch, Take,
 };
 
 use crate::config::{apply_env, EngineConfig};
@@ -58,6 +58,12 @@ pub struct ShotOutcome {
     pub prompt: String,
     pub take_path: Option<PathBuf>,
     pub error: Option<String>,
+    /// Quality-gate verdict after generate (if run).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quality: Option<slate_brain::QualityVerdict>,
+    /// How many generate attempts were used (1 = first accept or single try).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attempts: Option<u32>,
 }
 
 /// Result of a full film-factory run.
@@ -586,63 +592,232 @@ where
     }
 }
 
-/// Compile one shot and write a take via Comfy (or dry-run marker).
+/// Result of generate + quality gate for one shot.
+#[derive(Debug, Clone)]
+pub struct GenerateGateResult {
+    pub path: PathBuf,
+    pub quality: Option<slate_brain::QualityVerdict>,
+    pub attempts: u32,
+    pub gate_skipped: bool,
+    pub receipts: Vec<String>,
+}
+
+/// Build a short continuity blurb from project bible + scene siblings.
+pub fn continuity_context(project: &Project, scene_idx: usize, shot_idx: usize) -> String {
+    let mut lines = Vec::new();
+    if !project.logline.is_empty() {
+        lines.push(format!("Logline: {}", project.logline));
+    }
+    if !project.world.is_empty() {
+        lines.push(format!("World: {}", project.world));
+    }
+    for c in project.characters.iter().take(6) {
+        let bits = [
+            c.age.as_str(),
+            c.gender.as_str(),
+            c.face_features.as_str(),
+            c.hair.as_str(),
+            c.clothing.as_str(),
+        ]
+        .into_iter()
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("; ");
+        if bits.is_empty() {
+            lines.push(format!("Character: {}", c.name));
+        } else {
+            lines.push(format!("Character {}: {}", c.name, bits));
+        }
+    }
+    if let Some(scene) = project.scenes.get(scene_idx) {
+        if !scene.synopsis.is_empty() {
+            lines.push(format!("Scene: {} — {}", scene.name, scene.synopsis));
+        }
+        for (i, sh) in scene.shots.iter().enumerate() {
+            if i == shot_idx {
+                continue;
+            }
+            let snippet = sh.intent.as_str();
+            if !snippet.is_empty() {
+                lines.push(format!("Other shot {}: {}", sh.name, snippet));
+            }
+        }
+        if let Some(sh) = scene.shots.get(shot_idx) {
+            if !sh.intent.is_empty() {
+                lines.push(format!("This shot intent: {}", sh.intent));
+            }
+        }
+    }
+    lines.join("\n")
+}
+
+/// Compile one shot, generate via Comfy (with quality-gate retries), record take.
 pub async fn generate_shot_take(
     ctx: &EngineCtx,
     project: &mut Project,
     scene_idx: usize,
     shot_idx: usize,
     pack_id: &str,
-) -> Result<PathBuf, String> {
+) -> Result<GenerateGateResult, String> {
+    use crate::quality_gate::{
+        apply_retry_hints_to_prompt, format_take_notes, judge_media, rating_for_verdict,
+    };
+
     let aspect = project.defaults.aspect_ratio.clone();
-    let (shot_id, compiled, prompt_text) = {
+    let max_retries = ctx.config.judge_max_retries;
+    let continuity = continuity_context(project, scene_idx, shot_idx);
+
+    let (shot_id, base_prompt) = {
         let shot = project
             .scenes
             .get(scene_idx)
             .and_then(|s| s.shots.get(shot_idx))
             .ok_or_else(|| "shot not found".to_string())?;
-        let compiled = compile_for_comfy(shot, &aspect);
-        (shot.id.clone(), compiled, shot.prompt.clone())
+        (shot.id.clone(), shot.prompt.clone())
     };
 
     let dest_dir = project_takes_dir(&project.id, &shot_id);
-    let mut values: HashMap<String, Value> = HashMap::new();
-    values.insert("positive".into(), json!(compiled.positive));
-    values.insert("negative".into(), json!(compiled.negative));
-    values.insert("width".into(), json!(compiled.width));
-    values.insert("height".into(), json!(compiled.height));
-
-    // Ensure dry-run env matches config for comfy helper.
     apply_env(&ctx.config);
-
     let client = ComfyClient::new(&ctx.config.comfy_base_url).map_err(|e| e.to_string())?;
-    let path = generate_to_file(
-        &client,
-        &ctx.config.packs_dir,
-        pack_id,
-        &values,
-        &dest_dir,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
 
-    let shot = project
-        .scenes
-        .get_mut(scene_idx)
-        .and_then(|s| s.shots.get_mut(shot_idx))
-        .ok_or_else(|| "shot not found after generate".to_string())?;
+    let mut working_prompt = base_prompt.clone();
+    let mut last_hints: Vec<String> = Vec::new();
+    let mut receipts = Vec::new();
+    let mut last_path: Option<PathBuf> = None;
+    let mut last_quality: Option<slate_brain::QualityVerdict> = None;
+    let mut gate_skipped = false;
+    let mut attempts: u32 = 0;
 
-    shot.takes.push(Take {
-        id: uid("take"),
-        logged_at: now_iso(),
-        model: pack_id.to_string(),
-        prompt: prompt_text,
-        rating: TakeRating::Good,
-        notes: path.display().to_string(),
-    });
-    shot.updated_at = now_iso();
+    let max_attempts = max_retries.saturating_add(1);
 
-    Ok(path)
+    for attempt in 1..=max_attempts {
+        attempts = attempt;
+        if !last_hints.is_empty() {
+            working_prompt = apply_retry_hints_to_prompt(&base_prompt, &last_hints);
+            // Persist prompt pickup on the shot for history of retries.
+            if let Some(shot) = project
+                .scenes
+                .get_mut(scene_idx)
+                .and_then(|s| s.shots.get_mut(shot_idx))
+            {
+                if shot.prompt != working_prompt {
+                    shot.history.insert(
+                        0,
+                        slate_domain::PromptVersion {
+                            id: uid("v"),
+                            saved_at: now_iso(),
+                            label: format!("quality-gate retry {attempt}"),
+                            prompt: shot.prompt.clone(),
+                        },
+                    );
+                    shot.prompt = working_prompt.clone();
+                    shot.updated_at = now_iso();
+                }
+            }
+        }
+
+        let compiled = {
+            let shot = project
+                .scenes
+                .get(scene_idx)
+                .and_then(|s| s.shots.get(shot_idx))
+                .ok_or_else(|| "shot not found".to_string())?;
+            // Temporarily compile from working prompt
+            let mut temp = shot.clone();
+            temp.prompt = working_prompt.clone();
+            compile_for_comfy(&temp, &aspect)
+        };
+
+        let mut values: HashMap<String, Value> = HashMap::new();
+        values.insert("positive".into(), json!(compiled.positive));
+        values.insert("negative".into(), json!(compiled.negative));
+        values.insert("width".into(), json!(compiled.width));
+        values.insert("height".into(), json!(compiled.height));
+        // New seed each attempt (randomize also happens in inject if omitted).
+        values.insert(
+            "seed".into(),
+            json!(rand::random::<u64>() % 1_000_000_000),
+        );
+
+        let path = generate_to_file(
+            &client,
+            &ctx.config.packs_dir,
+            pack_id,
+            &values,
+            &dest_dir,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+        last_path = Some(path.clone());
+        receipts.push(format!(
+            "• generate attempt {attempt}/{max_attempts}: {}",
+            path.display()
+        ));
+
+        let gate = judge_media(&ctx.config, &path, &working_prompt, &continuity)
+            .await
+            .map_err(|e| format!("quality gate: {e}"))?;
+        gate_skipped = gate.skipped;
+        last_quality = Some(gate.verdict.clone());
+        last_hints = gate.verdict.retry_hints.clone();
+
+        let rating = rating_for_verdict(&gate.verdict, gate.skipped);
+        let notes = format_take_notes(&path, &gate);
+
+        let shot = project
+            .scenes
+            .get_mut(scene_idx)
+            .and_then(|s| s.shots.get_mut(shot_idx))
+            .ok_or_else(|| "shot not found after generate".to_string())?;
+
+        shot.takes.push(Take {
+            id: uid("take"),
+            logged_at: now_iso(),
+            model: pack_id.to_string(),
+            prompt: working_prompt.clone(),
+            rating,
+            notes,
+        });
+        shot.updated_at = now_iso();
+
+        if gate.skipped {
+            receipts.push(format!(
+                "• quality gate skipped: {}",
+                gate.skip_reason.unwrap_or_else(|| "n/a".into())
+            ));
+            break;
+        }
+
+        if gate.verdict.accept {
+            receipts.push(format!(
+                "✓ quality pass overall={:.2} (attempt {attempt})",
+                gate.verdict.overall
+            ));
+            break;
+        }
+
+        receipts.push(format!(
+            "• quality fail overall={:.2} (attempt {attempt}): {}",
+            gate.verdict.overall,
+            gate.verdict.summary
+        ));
+
+        if attempt >= max_attempts {
+            receipts.push(format!(
+                "• quality gate exhausted retries ({max_retries}); keeping last take as no-good"
+            ));
+            break;
+        }
+    }
+
+    let path = last_path.ok_or_else(|| "no take path produced".to_string())?;
+    Ok(GenerateGateResult {
+        path,
+        quality: last_quality,
+        attempts,
+        gate_skipped,
+        receipts,
+    })
 }
 
 /// Full pipeline: health → intake/bible/coverage/prompts → compile → generate → review.
@@ -977,6 +1152,8 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                         prompt: s.prompt.clone(),
                         take_path: None,
                         error: Some("cancelled".into()),
+                        quality: None,
+                        attempts: None,
                     });
                 }
             }
@@ -999,14 +1176,17 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
         );
 
         match generate_shot_take(ctx, &mut project, scene_idx, shot_idx, &pack_id).await {
-            Ok(path) => {
-                receipts.push(format!("✓ take for {name}: {}", path.display()));
+            Ok(res) => {
+                receipts.extend(res.receipts);
+                receipts.push(format!("✓ take for {name}: {}", res.path.display()));
                 outcomes.push(ShotOutcome {
                     id,
                     name,
                     prompt,
-                    take_path: Some(path),
+                    take_path: Some(res.path),
                     error: None,
+                    quality: res.quality,
+                    attempts: Some(res.attempts),
                 });
             }
             Err(e) => {
@@ -1017,6 +1197,8 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                     prompt,
                     take_path: None,
                     error: Some(e),
+                    quality: None,
+                    attempts: None,
                 });
             }
         }
@@ -1151,14 +1333,16 @@ pub async fn generate_one_shot(
     };
 
     match generate_shot_take(ctx, &mut project, scene_idx, shot_idx, pack).await {
-        Ok(path) => {
+        Ok(res) => {
             save_project(&mut project).map_err(|e| e.to_string())?;
             Ok(ShotOutcome {
                 id,
                 name,
                 prompt,
-                take_path: Some(path),
+                take_path: Some(res.path),
                 error: None,
+                quality: res.quality,
+                attempts: Some(res.attempts),
             })
         }
         Err(e) => Ok(ShotOutcome {
@@ -1167,6 +1351,8 @@ pub async fn generate_one_shot(
             prompt,
             take_path: None,
             error: Some(e),
+            quality: None,
+            attempts: None,
         }),
     }
 }

@@ -140,7 +140,7 @@ pub fn catalog() -> Vec<ToolInfo> {
         },
         ToolInfo {
             name: "slate_generate_shot".into(),
-            description: "Re-roll one shot through a Comfy pack (blocking).".into(),
+            description: "Re-roll one shot through a Comfy pack with quality-gate retries (blocking).".into(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
@@ -149,6 +149,19 @@ pub fn catalog() -> Vec<ToolInfo> {
                     "pack_id": { "type": "string" }
                 },
                 "required": ["projectId", "shotId"]
+            }),
+        },
+        ToolInfo {
+            name: "slate_judge_take".into(),
+            description: "Score a media file with the local VL judge (qwen3.5:9b preferred). Args: mediaPath, prompt?, continuity?.".into(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "mediaPath": { "type": "string" },
+                    "prompt": { "type": "string" },
+                    "continuity": { "type": "string" }
+                },
+                "required": ["mediaPath"]
             }),
         },
         ToolInfo {
@@ -184,6 +197,7 @@ pub async fn invoke(tool: &str, args: Value, ctx: &EngineCtx) -> Result<Value, S
         "slate_get_project" => slate_get_project(args),
         "slate_film_factory" => slate_film_factory(ctx, args).await,
         "slate_generate_shot" => slate_generate_shot(ctx, args).await,
+        "slate_judge_take" => slate_judge_take(ctx, args).await,
         "slate_list_takes" => slate_list_takes(args),
         "slate_cancel" => slate_cancel(ctx),
         "slate_status" => slate_status(ctx),
@@ -304,6 +318,40 @@ async fn slate_generate_shot(ctx: &EngineCtx, args: Value) -> Result<Value, Stri
 
     let outcome = factory::generate_one_shot(ctx, project_id, shot_id, pack_id).await?;
     serde_json::to_value(outcome).map_err(|e| e.to_string())
+}
+
+async fn slate_judge_take(ctx: &EngineCtx, args: Value) -> Result<Value, String> {
+    use crate::quality_gate::judge_media;
+    use std::path::PathBuf;
+
+    let media_path = args
+        .get("mediaPath")
+        .or_else(|| args.get("media_path"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing required arg: mediaPath".to_string())?;
+    let prompt = args
+        .get("prompt")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let continuity = args
+        .get("continuity")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let path = PathBuf::from(media_path);
+    if !path.is_file() {
+        return Err(format!("media file not found: {media_path}"));
+    }
+
+    let outcome = judge_media(&ctx.config, &path, &prompt, &continuity).await?;
+    serde_json::to_value(json!({
+        "skipped": outcome.skipped,
+        "skipReason": outcome.skip_reason,
+        "verdict": outcome.verdict,
+    }))
+    .map_err(|e| e.to_string())
 }
 
 fn slate_list_takes(args: Value) -> Result<Value, String> {
