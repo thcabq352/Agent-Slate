@@ -1,5 +1,7 @@
-//! Brain availability status (local probe now; Claude/Codex CLI in Task 7).
+//! Brain availability status (local probe + Claude/Codex CLI `--version`).
 
+use crate::claude::which_claude;
+use crate::codex::which_codex;
 use crate::local::detect_local;
 use serde::{Deserialize, Serialize};
 
@@ -30,9 +32,15 @@ pub struct BrainStatus {
     pub local: LocalStatus,
 }
 
-/// Probe local OpenAI-compat server; Claude/Codex left unavailable until Task 7.
+/// Probe Claude, Codex, and local OpenAI-compat backends in parallel.
 pub async fn brain_status(local_endpoint: Option<&str>) -> BrainStatus {
-    let (endpoint, models) = detect_local(local_endpoint).await;
+    let (claude_v, codex_v, local_probe) = tokio::join!(
+        which_claude(),
+        which_codex(),
+        detect_local(local_endpoint),
+    );
+
+    let (endpoint, models) = local_probe;
     let local = match endpoint {
         Some(ep) => {
             let host = ep
@@ -53,14 +61,13 @@ pub async fn brain_status(local_endpoint: Option<&str>) -> BrainStatus {
     };
 
     BrainStatus {
-        // Task 7 wires CLI detection.
         claude: BackendAvailability {
-            available: false,
-            version: None,
+            available: claude_v.is_some(),
+            version: claude_v,
         },
         codex: BackendAvailability {
-            available: false,
-            version: None,
+            available: codex_v.is_some(),
+            version: codex_v,
         },
         local,
     }
