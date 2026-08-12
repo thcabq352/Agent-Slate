@@ -946,9 +946,11 @@ name = "slate-comfy"
 version = "0.1.0"
 dependencies = [
  "rand 0.8.7",
+ "reqwest",
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
