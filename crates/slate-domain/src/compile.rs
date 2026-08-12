@@ -6,8 +6,7 @@ use std::collections::HashSet;
 use crate::types::Shot;
 
 /// Fixed quality baseline for V1 stills negative prompt.
-pub const DEFAULT_NEGATIVE: &str =
-    "blurry, low quality, watermark, text overlay, deformed hands";
+pub const DEFAULT_NEGATIVE: &str = "blurry, low quality, watermark, text overlay, deformed hands";
 
 /// Compiled payload ready for a ComfyUI stills workflow.
 #[derive(Debug, Clone, PartialEq, Eq)]

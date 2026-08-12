@@ -265,26 +265,22 @@ fn opt_str(v: &Option<String>) -> String {
 
 fn find_scene_idx(p: &Project, ref_: &str) -> Option<usize> {
     let needle = ref_.trim().to_lowercase();
-    p.scenes
-        .iter()
-        .position(|s| s.id == ref_)
-        .or_else(|| p.scenes.iter().position(|s| s.name.to_lowercase() == needle))
+    p.scenes.iter().position(|s| s.id == ref_).or_else(|| {
+        p.scenes
+            .iter()
+            .position(|s| s.name.to_lowercase() == needle)
+    })
 }
 
 fn find_shot_any_scene(p: &Project, ref_: &str) -> Option<(usize, usize)> {
     let needle = ref_.trim().to_lowercase();
     for (si, scene) in p.scenes.iter().enumerate() {
-        if let Some(shi) = scene
-            .shots
-            .iter()
-            .position(|s| s.id == ref_)
-            .or_else(|| {
-                scene
-                    .shots
-                    .iter()
-                    .position(|s| s.name.to_lowercase() == needle)
-            })
-        {
+        if let Some(shi) = scene.shots.iter().position(|s| s.id == ref_).or_else(|| {
+            scene
+                .shots
+                .iter()
+                .position(|s| s.name.to_lowercase() == needle)
+        }) {
             return Some((si, shi));
         }
     }
@@ -472,9 +468,9 @@ pub fn apply_ad_actions(project: &mut Project, actions: &[AdAction]) -> ApplyRes
                     continue;
                 };
                 let sc = &mut project.scenes[idx];
-                let shot_name = name.clone().unwrap_or_else(|| {
-                    format!("Shot {:02}", sc.shots.len() + 1)
-                });
+                let shot_name = name
+                    .clone()
+                    .unwrap_or_else(|| format!("Shot {:02}", sc.shots.len() + 1));
                 let mut shot = blank_shot(&shot_name, &project.defaults);
                 if let Some(i) = intent {
                     shot.intent = i.clone();
@@ -498,11 +494,7 @@ pub fn apply_ad_actions(project: &mut Project, actions: &[AdAction]) -> ApplyRes
                 let scene_name = sc.name.clone();
                 let shot_id = shot.id.clone();
                 let shot_display = shot.name.clone();
-                let with_prompt = if prompt.is_some() {
-                    " with prompt"
-                } else {
-                    ""
-                };
+                let with_prompt = if prompt.is_some() { " with prompt" } else { "" };
                 sc.shots.push(shot);
                 focus_scene_id = Some(scene_id);
                 focus_shot_id = Some(shot_id);
