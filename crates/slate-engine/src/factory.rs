@@ -154,6 +154,34 @@ pub fn clamp_shot_count(n: Option<u8>) -> u8 {
     n.unwrap_or(4).clamp(4, 8)
 }
 
+/// Ensure coverage plans are within V1 range 4–8: pad with stub plans if fewer
+/// than 4, truncate if more than 8.
+pub fn pad_coverage_plans(mut plans: Vec<CoverageShotPlan>) -> Vec<CoverageShotPlan> {
+    if plans.len() > 8 {
+        plans.truncate(8);
+    }
+    while plans.len() < 4 {
+        let i = plans.len() + 1;
+        let size = if i == 1 {
+            "wide"
+        } else if i == 4 {
+            "close"
+        } else {
+            "medium"
+        };
+        plans.push(CoverageShotPlan {
+            name: Some(format!("Shot {i:02}")),
+            intent: Some(format!("Coverage beat {i} of 4")),
+            size: Some(size.into()),
+            angle: Some("eye".into()),
+            movement: Some("static".into()),
+            duration_sec: None,
+            prompt: None,
+        });
+    }
+    plans
+}
+
 /// Title = first 40 chars of brief (trimmed).
 pub fn title_from_brief(brief: &str) -> String {
     let t: String = brief.chars().take(40).collect();
@@ -323,17 +351,18 @@ pub fn stub_shot_actions(brief: &SceneBrief, source_brief: &str) -> Vec<AdAction
 }
 
 /// CreateShot actions from a live coverage plan.
+/// Plans are padded/truncated to 4–8 before creating actions.
 pub fn coverage_to_actions(
     plans: &[CoverageShotPlan],
     scene_name: &str,
     brief: &SceneBrief,
     source_brief: &str,
 ) -> Vec<AdAction> {
-    let n = plans.len().clamp(4, 8);
+    let plans = pad_coverage_plans(plans.to_vec());
+    let n = plans.len();
     let fallback = sectioned_stub_prompt(source_brief);
     plans
         .iter()
-        .take(n)
         .enumerate()
         .map(|(i, p)| {
             let name = p
@@ -813,10 +842,15 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
         let backend = live_backend.expect("live path has backend");
         match live_coverage(backend, &scene_brief, &project).await {
             Ok(plans) => {
-                let n = plans.len().clamp(4, 8);
                 let actions = coverage_to_actions(&plans, &scene_name, &scene_brief, &args.brief);
                 let applied = apply_ad_actions(&mut project, &actions);
                 receipts.extend(applied.receipts);
+                // Report actual applied shot count, not plan-list clamp alone.
+                let n = project
+                    .scenes
+                    .get(scene_idx)
+                    .map(|s| s.shots.len())
+                    .unwrap_or(0);
                 receipts.push(format!("✓ coverage: brain planned {n} shots"));
             }
             Err(e) => {
@@ -1056,13 +1090,7 @@ async fn live_coverage(
         parse_coverage_json,
     )
     .await
-    .map(|mut plans| {
-        // Clamp to 4–8 for V1.
-        if plans.len() > 8 {
-            plans.truncate(8);
-        }
-        plans
-    })
+    .map(pad_coverage_plans)
 }
 
 async fn live_shot_prompt(
@@ -1245,6 +1273,72 @@ mod tests {
         });
         let plans = parse_coverage_json(&wrapped).unwrap();
         assert_eq!(plans.len(), 4);
+    }
+
+    #[test]
+    fn pad_coverage_plans_two_yields_at_least_four() {
+        let arr = serde_json::json!([
+            {"name": "Shot 01", "intent": "establish", "size": "wide"},
+            {"name": "Shot 02", "intent": "detail", "size": "close"}
+        ]);
+        let plans = parse_coverage_json(&arr).unwrap();
+        assert_eq!(plans.len(), 2);
+
+        let padded = pad_coverage_plans(plans);
+        assert!(padded.len() >= 4, "expected >=4, got {}", padded.len());
+        assert!(padded.len() <= 8);
+        assert_eq!(padded[0].name.as_deref(), Some("Shot 01"));
+        assert_eq!(padded[1].name.as_deref(), Some("Shot 02"));
+        // Stub pads fill the rest.
+        assert!(padded[2].name.is_some());
+        assert!(padded[3].name.is_some());
+    }
+
+    #[test]
+    fn coverage_to_actions_two_plans_yields_four_shots() {
+        let plans = vec![
+            CoverageShotPlan {
+                name: Some("A".into()),
+                intent: Some("establish".into()),
+                size: Some("wide".into()),
+                angle: None,
+                movement: None,
+                duration_sec: None,
+                prompt: None,
+            },
+            CoverageShotPlan {
+                name: Some("B".into()),
+                intent: Some("detail".into()),
+                size: Some("close".into()),
+                angle: None,
+                movement: None,
+                duration_sec: None,
+                prompt: None,
+            },
+        ];
+        let brief = stub_scene_brief("test brief", Some(4), None);
+        let actions = coverage_to_actions(&plans, "Scene", &brief, "test brief");
+        assert_eq!(actions.len(), 4, "post-process must pad to min 4 CreateShot actions");
+        for a in &actions {
+            assert!(matches!(a, AdAction::CreateShot { .. }));
+        }
+    }
+
+    #[test]
+    fn pad_coverage_plans_truncates_above_eight() {
+        let plans: Vec<CoverageShotPlan> = (1..=12)
+            .map(|i| CoverageShotPlan {
+                name: Some(format!("S{i}")),
+                intent: Some(format!("beat {i}")),
+                size: None,
+                angle: None,
+                movement: None,
+                duration_sec: None,
+                prompt: None,
+            })
+            .collect();
+        let padded = pad_coverage_plans(plans);
+        assert_eq!(padded.len(), 8);
     }
 
     #[test]
