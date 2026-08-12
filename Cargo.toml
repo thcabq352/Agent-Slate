@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["crates/slate-domain", "crates/slate-brain", "crates/slate-comfy"]
+members = [
+    "crates/slate-domain",
+    "crates/slate-brain",
+    "crates/slate-comfy",
+    "crates/slate-engine",
+]
 
 [workspace.package]
 edition = "2021"

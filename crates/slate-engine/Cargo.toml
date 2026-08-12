@@ -1,0 +1,25 @@
+[package]
+name = "slate-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "slate-engine"
+path = "src/main.rs"
+
+[dependencies]
+slate-domain = { path = "../slate-domain" }
+slate-brain = { path = "../slate-brain" }
+slate-comfy = { path = "../slate-comfy" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "time"] }
+axum = "0.8"
+tower = "0.5"
+dirs = "6"
+rand = "0.8"
+clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3"
