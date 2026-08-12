@@ -4,9 +4,11 @@
 
 pub mod config;
 pub mod control_desc;
+pub mod factory;
 pub mod http;
 pub mod mcp;
+pub mod prompts;
 pub mod tools;
 
 pub use config::{apply_env, load_config, EngineConfig};
-pub use tools::{catalog, invoke, EngineCtx, ToolInfo};
+pub use tools::{catalog, invoke, EngineCtx, JobStatus, ToolInfo};
