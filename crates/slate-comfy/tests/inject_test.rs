@@ -56,3 +56,15 @@ fn load_manifest_reads_id_and_inputs() {
     assert_eq!(m.inputs["positive"].node_id, "6");
     assert_eq!(m.inputs["seed"].mode.as_deref(), Some("randomize"));
 }
+
+#[test]
+fn default_still_manifest_mirrors_width_height() {
+    let pack = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../workflows/packs/default-still/manifest.json");
+    let m = load_manifest(&pack).expect("default-still manifest");
+    assert_eq!(m.id, "default-still");
+    assert_eq!(m.inputs["width"].node_id, "27");
+    assert_eq!(m.inputs["width"].mirrors[0].node_id, "30");
+    assert_eq!(m.inputs["height"].mirrors[0].field, "height");
+    assert_eq!(m.inputs["positive"].node_id, "6");
+}

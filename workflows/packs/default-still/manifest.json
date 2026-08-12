@@ -1,12 +1,20 @@
 {
   "id": "default-still",
-  "label": "Default local still",
+  "label": "Default local still (Flux.1-dev fp8)",
   "modality": "image",
   "inputs": {
     "positive": { "node_id": "6", "field": "text" },
     "negative": { "node_id": "7", "field": "text" },
-    "width": { "node_id": "5", "field": "width" },
-    "height": { "node_id": "5", "field": "height" },
+    "width": {
+      "node_id": "27",
+      "field": "width",
+      "mirrors": [{ "node_id": "30", "field": "width" }]
+    },
+    "height": {
+      "node_id": "27",
+      "field": "height",
+      "mirrors": [{ "node_id": "30", "field": "height" }]
+    },
     "seed": { "node_id": "3", "field": "seed", "mode": "randomize" }
   },
   "outputs": {

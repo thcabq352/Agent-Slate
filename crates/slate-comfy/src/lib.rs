@@ -12,7 +12,9 @@ pub use client::{
     DEFAULT_COMFY_BASE, SLATE_DRY_RUN_ENV,
 };
 pub use inject::inject_workflow;
-pub use manifest::{load_manifest, InputMap, OutputMap, PackLimits, PackManifest};
+pub use manifest::{
+    load_manifest, InputMap, InputMirror, OutputMap, PackLimits, PackManifest,
+};
 
 /// Crate-level result alias.
 pub type Result<T> = std::result::Result<T, Error>;

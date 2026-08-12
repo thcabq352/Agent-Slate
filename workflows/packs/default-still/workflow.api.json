@@ -1,52 +1,84 @@
 {
-  "3": {
-    "class_type": "KSampler",
+  "12": {
+    "class_type": "UNETLoader",
     "inputs": {
-      "seed": 0,
-      "steps": 20,
-      "cfg": 7,
-      "sampler_name": "euler",
-      "scheduler": "normal",
-      "denoise": 1,
-      "model": ["4", 0],
-      "positive": ["6", 0],
-      "negative": ["7", 0],
-      "latent_image": ["5", 0]
+      "unet_name": "flux1-dev-fp8.safetensors",
+      "weight_dtype": "default"
     }
   },
-  "4": {
-    "class_type": "CheckpointLoaderSimple",
+  "11": {
+    "class_type": "DualCLIPLoader",
     "inputs": {
-      "ckpt_name": "PLACEHOLDER.safetensors"
+      "clip_name1": "clip_l.safetensors",
+      "clip_name2": "t5xxl_fp8_e4m3fn.safetensors",
+      "type": "flux"
     }
   },
-  "5": {
-    "class_type": "EmptyLatentImage",
+  "10": {
+    "class_type": "VAELoader",
     "inputs": {
-      "width": 1024,
-      "height": 576,
-      "batch_size": 1
+      "vae_name": "ae.safetensors"
     }
   },
   "6": {
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "",
-      "clip": ["4", 1]
+      "clip": ["11", 0]
     }
   },
   "7": {
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "",
-      "clip": ["4", 1]
+      "clip": ["11", 0]
+    }
+  },
+  "26": {
+    "class_type": "FluxGuidance",
+    "inputs": {
+      "conditioning": ["6", 0],
+      "guidance": 3.5
+    }
+  },
+  "27": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1280,
+      "height": 720,
+      "batch_size": 1
+    }
+  },
+  "30": {
+    "class_type": "ModelSamplingFlux",
+    "inputs": {
+      "model": ["12", 0],
+      "max_shift": 1.15,
+      "base_shift": 0.5,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 0,
+      "steps": 8,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": ["30", 0],
+      "positive": ["26", 0],
+      "negative": ["7", 0],
+      "latent_image": ["27", 0]
     }
   },
   "8": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": ["3", 0],
-      "vae": ["4", 2]
+      "vae": ["10", 0]
     }
   },
   "9": {

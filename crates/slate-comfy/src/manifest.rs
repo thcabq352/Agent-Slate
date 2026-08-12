@@ -8,6 +8,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Error, Result};
 
+/// Extra write targets for the same logical value (e.g. width on latent + ModelSamplingFlux).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InputMirror {
+    pub node_id: String,
+    pub field: String,
+}
+
 /// Logical input → graph node field mapping.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InputMap {
@@ -17,6 +24,9 @@ pub struct InputMap {
     pub mode: Option<String>,
     #[serde(default)]
     pub optional: bool,
+    /// Additional nodes that receive the same injected value.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mirrors: Vec<InputMirror>,
 }
 
 /// Output media slot in the graph.

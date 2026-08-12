@@ -34,7 +34,10 @@ pub fn inject_workflow(
                 )));
             }
         };
-        set_input(graph, map, value)?;
+        set_input(graph, &map.node_id, &map.field, value.clone())?;
+        for m in &map.mirrors {
+            set_input(graph, &m.node_id, &m.field, value.clone())?;
+        }
     }
 
     Ok(workflow)
@@ -53,27 +56,24 @@ fn random_seed() -> u64 {
 
 fn set_input(
     graph: &mut serde_json::Map<String, Value>,
-    map: &InputMap,
+    node_id: &str,
+    field: &str,
     value: Value,
 ) -> Result<()> {
-    let node = graph.get_mut(&map.node_id).ok_or_else(|| {
+    let node = graph.get_mut(node_id).ok_or_else(|| {
         Error::Inject(format!(
-            "node `{}` not found in workflow (field {})",
-            map.node_id, map.field
+            "node `{node_id}` not found in workflow (field {field})"
         ))
     })?;
-    let node_obj = node.as_object_mut().ok_or_else(|| {
-        Error::Inject(format!("node `{}` is not a JSON object", map.node_id))
-    })?;
+    let node_obj = node
+        .as_object_mut()
+        .ok_or_else(|| Error::Inject(format!("node `{node_id}` is not a JSON object")))?;
     let inputs = node_obj
         .entry("inputs")
         .or_insert_with(|| Value::Object(serde_json::Map::new()));
     let inputs_obj = inputs.as_object_mut().ok_or_else(|| {
-        Error::Inject(format!(
-            "node `{}` inputs is not a JSON object",
-            map.node_id
-        ))
+        Error::Inject(format!("node `{node_id}` inputs is not a JSON object"))
     })?;
-    inputs_obj.insert(map.field.clone(), value);
+    inputs_obj.insert(field.to_string(), value);
     Ok(())
 }
