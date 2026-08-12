@@ -1,0 +1,20 @@
+{
+  "id": "default-still",
+  "label": "Default local still",
+  "modality": "image",
+  "inputs": {
+    "positive": { "node_id": "6", "field": "text" },
+    "negative": { "node_id": "7", "field": "text" },
+    "width": { "node_id": "5", "field": "width" },
+    "height": { "node_id": "5", "field": "height" },
+    "seed": { "node_id": "3", "field": "seed", "mode": "randomize" }
+  },
+  "outputs": {
+    "media": { "node_id": "9", "type": "image" }
+  },
+  "limits": {
+    "aspect_ratios": ["16:9", "9:16", "1:1"],
+    "max_duration_sec": null
+  },
+  "compile_profile": "comfyui"
+}

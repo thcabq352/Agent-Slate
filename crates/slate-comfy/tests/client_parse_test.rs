@@ -1,0 +1,47 @@
+//! Unit tests for history output parsing (no live Comfy required).
+
+use slate_comfy::collect_output_files;
+
+#[test]
+fn collect_output_files_from_history_shape() {
+    let history = serde_json::json!({
+        "outputs": {
+            "9": {
+                "images": [{ "filename": "a.png", "subfolder": "", "type": "output" }]
+            }
+        }
+    });
+    let files = collect_output_files(&history);
+    assert_eq!(files.len(), 1);
+    assert_eq!(files[0].filename, "a.png");
+    assert_eq!(files[0].subfolder, "");
+    assert_eq!(files[0].file_type, "output");
+}
+
+#[test]
+fn collect_output_files_empty_when_no_outputs() {
+    let history = serde_json::json!({ "status": { "completed": true } });
+    assert!(collect_output_files(&history).is_empty());
+}
+
+#[test]
+fn collect_output_files_multiple_nodes() {
+    let history = serde_json::json!({
+        "outputs": {
+            "9": {
+                "images": [
+                    { "filename": "a.png", "subfolder": "", "type": "output" }
+                ]
+            },
+            "10": {
+                "images": [
+                    { "filename": "b.png", "subfolder": "shots", "type": "output" }
+                ]
+            }
+        }
+    });
+    let files = collect_output_files(&history);
+    assert_eq!(files.len(), 2);
+    assert!(files.iter().any(|f| f.filename == "a.png"));
+    assert!(files.iter().any(|f| f.filename == "b.png" && f.subfolder == "shots"));
+}
