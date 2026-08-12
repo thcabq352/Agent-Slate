@@ -1,8 +1,10 @@
 mod actions;
+mod compile;
 mod store;
 mod types;
 mod uid;
 pub use actions::*;
+pub use compile::*;
 pub use store::*;
 pub use types::*;
 pub use uid::uid;
