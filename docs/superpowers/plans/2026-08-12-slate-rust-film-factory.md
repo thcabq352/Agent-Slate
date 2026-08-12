@@ -1,5 +1,7 @@
 # Slate Rust Film Factory Implementation Plan
 
+> **Status 2026-08-12:** V1 of this plan is **done** (engine, packs, quality gate, First AD, notes, Agent dock, live Flux + one-clip LTX). Checkboxes below are historical. See [`docs/STATUS.md`](../../STATUS.md). Follow-ups (I2V, video judge, assemble) are **not** this plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship a Rust `slate-engine` that runs a synchronous one-scene film factory (brief → project → prompts → local ComfyUI takes) and exposes it to Hermes via MCP tools.
@@ -1109,8 +1111,8 @@ git commit -m "fix(comfy): align default-still pack with local graph"
 | Control descriptor HTTP | 10 |
 | Dry-run / tests | 9, 12, 15 |
 | Hermes skill + GPU docs | 14 |
-| default-video pack | Deferred: add Task 16 only when still path proven (YAGNI until then) |
-| Electron attach | Out of V1 plan (spec PR8); do not implement in this plan |
+| default-video pack | **Shipped 2026-08-12** (was deferred here) |
+| Electron attach | **Shipped** as ◆ Agent dock (was out of V1 in this plan) |
 
 ## Deferred (explicit, not placeholders)
 

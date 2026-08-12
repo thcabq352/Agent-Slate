@@ -1,15 +1,20 @@
-# slate-engine (optional headless film factory)
+# slate-engine
 
-`slate-engine` plans a one-scene shoot from a plain-language brief, writes sectioned prompts, compiles for ComfyUI packs, and can queue local ComfyUI generation. Agents use stdio MCP or localhost HTTP.
+`slate-engine` plans a one-scene shoot from a plain-language brief, writes sectioned prompts, compiles for ComfyUI packs, and queues local ComfyUI generation. Agents use **stdio MCP**. The Electron **◆ Agent** dock uses **loopback HTTP**.
+
+Current snapshot: [STATUS.md](STATUS.md).
 
 ## Build & run
 
 ```bash
+cargo build -p slate-engine                 # debug — what the dock auto-spawns first after release
 cargo build -p slate-engine --release
 cargo test --workspace
-cargo run -p slate-engine -- mcp
-cargo run -p slate-engine -- serve
+cargo run -p slate-engine -- mcp            # Hermes / Claude Code (blocking tools)
+cargo run -p slate-engine -- serve          # writes %APPDATA%/slate/control.json
 ```
+
+Rebuild after engine changes before **Connect / start engine**. An old `serve` process will keep the previous binary.
 
 ## Environment
 
@@ -20,89 +25,97 @@ cargo run -p slate-engine -- serve
 | `SLATE_PACKS_DIR` | Workflow packs directory |
 | `SLATE_BRAIN` | `local` \| `claude` \| `codex` |
 | `SLATE_DRY_RUN` | `1` = stub plan + dry-run takes |
-| `SLATE_JUDGE_MODEL` | VL judge tag (default **`qwen3.5:9b`**). **Not bundled** — install with Ollama |
-| `SLATE_JUDGE_ENDPOINT` | OpenAI-compat base for judge (default `http://127.0.0.1:11434/v1`) |
+| `SLATE_JUDGE_MODEL` | VL judge tag (default **`qwen3.5:9b`**). **Not bundled** |
+| `SLATE_JUDGE_ENDPOINT` | OpenAI-compat base (default `http://127.0.0.1:11434/v1`) |
 | `SLATE_JUDGE_PASS_THRESHOLD` | Auto-accept mean score 0–1 (default `0.7`) |
 | `SLATE_JUDGE_MAX_RETRIES` | Max auto retries after reject (default `2`) |
+| `SLATE_LIVE_COMFY` / `SLATE_LIVE_VIDEO` | Opt-in live pack smokes (`1`) |
 
-## Vision / quality gate (Phase 0–1)
+## Hermes vs Electron
+
+| Front | Command | `slate_film_factory` | Timeout |
+|-------|---------|----------------------|---------|
+| **Hermes / MCP agents** | `slate-engine mcp` | **Blocking** — omit `background` | **1800s** (900s minimum) |
+| **◆ Agent dock** | `slate-engine serve` | `{ "background": true }` then poll `slate_status` | N/A (job is async) |
+
+Do **not** teach Hermes `background: true`. That flag exists so the UI does not block IPC for 15+ minutes.
+
+Register:
+
+```bash
+hermes mcp add slate -- /absolute/path/to/target/debug/slate-engine mcp
+# YAML equivalent:
+# slate:
+#   command: …/slate-engine
+#   args: [mcp]
+#   timeout: 1800
+#   connect_timeout: 120
+```
+
+Preflight: `slate_health` (Comfy ok + at least one brain). One GPU owner only — do not stack Video Buddy heavy jobs with Slate generations.
+
+## Vision / quality gate
 
 `slate_health` returns:
 
-- `vision` — Ollama-first VL resolution for the quality judge  
+- `vision` — Ollama-first VL for the quality judge  
   - Preferred: **`qwen3.5:9b`**  
-  - Fallbacks if missing: `qwen3-vl:8b`, `qwen3-vl:30b`, `qwen3.6:35b`, `llava`, then heuristic VL-ish names  
-  - `ready: true` only when endpoint is up **and** a model was selected  
-  - `hint` explains how to fix when not ready  
+  - Fallbacks: `qwen3-vl:8b`, `qwen3-vl:30b`, `qwen3.6:35b`, `llava`, then heuristic VL-ish names  
+  - `ready: true` only when the endpoint is up **and** a model was selected  
 - `qualityGate` — pass threshold, max retries, configured model/endpoint  
-
-Install weights yourself (never shipped in the app package):
 
 ```bash
 ollama pull qwen3.5:9b
 ```
 
-Image inputs for local brains already use OpenAI multimodal `image_url` (base64) on `/v1/chat/completions` (works with Ollama VL models).
+After each Comfy take:
+
+1. VL scores visual quality, continuity, artifacts, prompt fidelity.
+2. Mean ≥ `SLATE_JUDGE_PASS_THRESHOLD` (0.7) → accept.
+3. Else apply `retry_hints`, new seed, regenerate (up to `SLATE_JUDGE_MAX_RETRIES`).
+4. Dry-run / missing VL / `.txt` / unreadable judge JSON → gate **skipped** (take kept).
+
+Takes store **`mediaPath`** (absolute file) plus a compact `notes` line with the verdict. `slate_list_takes` prefers `mediaPath`.
+
+Image brains use OpenAI multimodal `image_url` (base64). **Video files are not framed for the VL judge yet** — mp4 quality gate is skip/best-effort.
 
 ## Tools (MCP / HTTP)
 
 | Tool | Notes |
 |------|--------|
-| `slate_health` | Engine + Comfy + brains + **vision/judge** |
-| `slate_film_factory` | One-scene pipeline (generate + quality gate). `background: true` returns immediately; poll `slate_status` |
+| `slate_health` | Engine + Comfy + brains + vision/judge |
+| `slate_film_factory` | One-scene pipeline. Required: `brief`. Optional: `pack_id`, `brain`, `shot_count` (4–8), `project_name`, `background` |
 | `slate_generate_shot` | Re-roll one shot with quality-gate retries |
-| `slate_judge_take` | Score a media file only (`mediaPath`, optional `prompt` / `continuity`) |
-| `slate_first_ad` | First AD turn: plan/mutate project (`projectId`, `message`, `history?`) + continuity book |
-| `slate_note_write` | Write atomic note (`projectId`, `kind`, `title`, `body`, tags/scene/shot optional) |
-| `slate_note_search` | Search notes (`projectId`, `query?`, `kind?`, …) |
-| `slate_list_packs` | Comfy packs (modality, ready) |
-| `slate_run_pack` | Generic pack generate (`pack_id`, positive/negative/size/frames/seed, destDir?) |
-| `slate_compile_music` | Compile project music cues to text prompts (`target`: generic\|suno) |
+| `slate_judge_take` | Score a file (`mediaPath`, optional `prompt` / `continuity`) |
+| `slate_first_ad` | Conversational plan/mutate (`projectId`, `message`, `history?`) |
+| `slate_note_write` / `slate_note_search` | Atomic notes |
+| `slate_list_packs` | Pack id, modality, `ready` |
+| `slate_run_pack` | Generic generate (`pack_id`, positive/negative/width/height/`frames`/seed, destDir?) |
+| `slate_compile_music` | Cue → Suno/generic text (`projectId`, `target`, optional `cueId`) |
 | `slate_list_projects` / `slate_get_project` / `slate_list_takes` | Store |
 | `slate_status` / `slate_cancel` | Job control. Cancel sets the flag **and** POSTs Comfy `/interrupt` + queue clear |
 
-### Atomic Notes (Phase 4)
+Coverage JSON from the brain may be a bare array, `{ "shots" \| "coverage": [...] }`, a string of JSON, `{ "title", "purpose" }`, or a numbered map. Parse failures fall back to stub shots after one schema retry.
 
-Project-local memory at `{projectDir}/.notes/notes.jsonl` (JSON lines). Kinds:
+### Atomic notes
 
-`continuity` · `shot_decision` · `quality_feedback` · `scene_plan` · `general`
+`{projectDir}/.notes/notes.jsonl` — kinds: `continuity` · `shot_decision` · `quality_feedback` · `scene_plan` · `general`.
 
-Factory auto-writes quality + handoff notes after each take. First AD reads recent notes into the prompt and writes scene_plan / continuity locks. No model weights involved.
+### Electron ◆ Agent dock
 
-### Electron hybrid UI (Phase 5)
+With the engine built, click **◆ Agent**:
 
-With a project open, click **◆ Agent** in the titlebar:
+- Connect / start `slate-engine serve` (`target/release` then `target/debug`)
+- Pills: Comfy / VL / busy step
+- **Run brief** — background factory; live `step` / `scenePlan`; opens the new project when idle
+- **Compile cues** — music text only
+- First AD turn
+- Judge latest take (`mediaPath` or notes path), Approve, Retry shot
+- Cancel job — stop between shots **and** interrupt Comfy
 
-- Connect/start `slate-engine` (auto-spawns `target/debug|release/slate-engine serve` if built)
-- Live status: Comfy / VL / busy step / continuity plan
-- **Run brief** — `slate_film_factory` with `background: true` (pack + 4–8 shots; status updates live; opens the new project when done)
-- **Compile cues** — `slate_compile_music` (generic or Suno text; no audio render)
-- Engine First AD turn
-- Quality review: judge latest take, **Approve**, **Retry shot**
+### Continuity book
 
-Build the engine first: `cargo build -p slate-engine`.
-
-### Scene continuity (Phase 3)
-
-During `slate_film_factory` generate, a **scene continuity book** accumulates:
-
-- bible locks (cast wardrobe, location weather/time)
-- per-shot beats (intent, take path, quality pass/fail)
-- handoff line into the next shot
-- standing orders from quality issues
-
-That book is passed into the quality judge and appears on `slate_status` as `continuitySummary` / `scenePlan`.
-
-### Quality gate loop (Phase 2)
-
-After each Comfy take:
-
-1. VL judge (`qwen3.5:9b` preferred) scores visual quality, continuity, artifacts, prompt fidelity.
-2. If **mean ≥ `SLATE_JUDGE_PASS_THRESHOLD`** (default 0.7) → accept (take rating good/circled).
-3. Else apply `retry_hints` into a prompt pickup, new seed, regenerate (up to `SLATE_JUDGE_MAX_RETRIES`).
-4. Dry-run / missing VL / `.txt` takes → gate **skipped** (take kept, `quality` may still be present as skip).
-
-Verdict is stored on the take `notes` line and returned on shot outcomes as `quality` + `attempts`.
+During generate the engine accumulates bible locks, per-shot beats, handoff, and standing orders. Exposed on `slate_status` as `continuitySummary` / `scenePlan` and passed into the VL judge.
 
 ## Comfy packs
 
@@ -110,7 +123,9 @@ See `workflows/packs/`.
 
 | Pack | Modality | Live? |
 |------|----------|--------|
-| `default-still` | image | Yes — Flux.1-dev fp8 on this host |
-| `default-video` | video | Yes — LTX 2.3 distilled T2V (768×432 / 49 frames @ 24 fps; factory clamps stills sizes) |
+| `default-still` | image | Yes — Flux.1-dev fp8 |
+| `default-video` | video | Yes — LTX 2.3 distilled T2V (factory clamps 768×432 / 432×768; 49 frames @ 24 fps) |
 
-`slate_list_packs` reports `ready: false` for PLACEHOLDER templates. Music is **compile-only** (no audio file generation in-engine). The Agent dock **Run brief** button calls `slate_film_factory`; **Compile cues** calls `slate_compile_music`.
+`ready: false` if `workflow.api.json` still contains `PLACEHOLDER` / `ALIGN_ME`. Music is compile-only.
+
+Live LTX one-clip on this host: `slate_video_00001_.mp4`, 356 KB, ~92 s (2026-08-12).

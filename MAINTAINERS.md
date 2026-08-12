@@ -6,7 +6,7 @@
 |------|--------|---------|
 | **Maintainer** | **thcabq352** | [github.com/thcabq352](https://github.com/thcabq352) · [github.com/thcabq352/slate](https://github.com/thcabq352/slate) |
 
-The maintainer is responsible for this fork’s issues, PRs, releases, and new components (for example the Rust `slate-engine` film factory).
+The maintainer is responsible for this fork’s issues, PRs, releases, and new components (the Rust `slate-engine` film factory, Comfy packs, Agent dock). Current shipped state: [docs/STATUS.md](docs/STATUS.md).
 
 ## Upstream project
 

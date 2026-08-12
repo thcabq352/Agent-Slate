@@ -19,7 +19,7 @@
 
 ---
 
-Slate doesn't generate images or video. It makes the **prompts** you paste into your generators dramatically better, faster, and consistent across a whole film — the missing pre-production layer between *"I can see the shot"* and the generate button.
+Slate is the missing pre-production layer between *"I can see the shot"* and the generate button. The Electron studio makes the **prompts** you paste into any generator dramatically better, faster, and consistent across a whole film. **This fork** can also run a local **film factory** (`slate-engine` + ComfyUI) so a one-line brief becomes shots and takes on disk — optional, no API keys, no bundled weights.
 
 You write (or direct) structured, sectioned shot prompts — **Subject · Composition · Lighting · Camera · Style · Mood**, the categories a crew thinks in — with live cinematic syntax highlighting. A local AI brain helps you structure, tighten, enrich, riff, and iterate, always in the context of your film's characters, locations, props, and look. Then Slate compiles each shot, music cue, or voice for a specific target: **Seedance 2.0, Kling, Veo, Sora, Hailuo, LTX, Flux, Midjourney, GPT Image, Krea, ComfyUI, Suno, Eleven Music, Lyria, Stable Audio, ElevenLabs Voice Design, Hume, MiniMax** — each in its own dialect, against its real limits.
 
@@ -35,7 +35,8 @@ You write (or direct) structured, sectioned shot prompts — **Subject · Compos
 - 🖼️ **References** — drop in stills or clips; clips are key-framed locally (ffmpeg) and broken down into element sheets — lensing, lighting, palette, movement — you reuse as one-click ingredients.
 - 📦 **Deliverables** — per-model compile with preflight warnings (duration caps, aspect ratios, fps), smart character-budget compression that keeps locked lines verbatim, negative prompts where supported, timecode beats where honored. Copy one prompt, or export a scene as a Markdown shot list / CSV.
 - 🗒️ **Takes Log & version history** — circle the take that worked; roll any prompt back.
-- 🔌 **MCP built in** — agents and other tools can read and write your projects while Slate runs.
+- 🔌 **MCP built in** — the Electron control server plus **`slate-engine`** (Hermes / Claude Code) can plan a scene and generate local Comfy takes.
+- ◆ **Agent dock** — Connect the engine, **Run brief**, compile music cues, First AD, and quality-review takes without leaving the studio.
 - 🎞 **A Stills Library** — scan your dailies for circled takes (Circle Take) or any clip, extract stills with ffmpeg, and pin them to a character, location, or look. ✦ Fill then describes the person or place you actually shot, so sheets stay true to the footage.
 - 🔑 **No API keys, ever** — the brain is your own [Claude Code](https://claude.com/claude-code) or Codex sign-in, or any **local model** via Ollama, LM Studio, vLLM, llama.cpp… fully offline.
 
@@ -106,38 +107,38 @@ It pairs naturally with the rest of [Wasserman's Filmmaker Suite](https://github
 
 ## Rust engine / Hermes (film factory)
 
-The **slate-engine** binary is a local film-factory control plane: project planning, shot continuity, and ComfyUI generation over MCP (primary front: Hermes). It is separate from the Electron prompt studio above.
+**V1 is shipped** — see [`docs/STATUS.md`](docs/STATUS.md). `slate-engine` plans a one-scene shoot (4–8 shots), writes prompts, runs a local Comfy pack, and quality-gates stills with Ollama VL.
+
+| Pack | Live? |
+|------|--------|
+| `default-still` | Flux.1-dev fp8 |
+| `default-video` | LTX 2.3 distilled T2V (768×432, 49 frames; one-clip smoke 92s / 356 KB on this host) |
 
 **Build & run**
 
 ```bash
-cargo build -p slate-engine --release
-cargo run -p slate-engine -- mcp          # stdio MCP (Hermes / Claude Code)
-cargo run -p slate-engine -- serve        # loopback HTTP control server
+cargo build -p slate-engine                 # dock auto-spawns debug or release
+cargo run -p slate-engine -- mcp            # Hermes / Claude Code
+cargo run -p slate-engine -- serve          # Electron ◆ Agent → Connect
 ```
 
-Binary name: `slate-engine` (release: `target/release/slate-engine`).
+Binary: `slate-engine` (`target/debug` or `target/release`). Rebuild after engine changes.
 
-**ComfyUI** — default API `http://127.0.0.1:8188`. One GPU owner only; do not stack Video Buddy heavy jobs with Slate generations.
+**ComfyUI** — `http://127.0.0.1:8188`. One GPU owner only; do not stack Video Buddy heavy jobs with Slate generations.
 
-**Vision judge (Ollama)** — quality-gate VL model defaults to **`qwen3.5:9b`** (not bundled). Install with `ollama pull qwen3.5:9b`. Override: `SLATE_JUDGE_MODEL` / `SLATE_JUDGE_ENDPOINT`. `slate_health` reports `vision.ready` and `qualityGate` config. See [`docs/engine.md`](docs/engine.md).
+**Vision judge** — preferred **`qwen3.5:9b`** (not bundled): `ollama pull qwen3.5:9b`. Override `SLATE_JUDGE_MODEL` / `SLATE_JUDGE_ENDPOINT`.
 
-**Dry-run** (no GPU / no Comfy) — skip real generation:
+**Hermes** must call **blocking** `slate_film_factory` (no `background: true`) with timeout **1800s** (900s minimum):
 
 ```bash
-SLATE_DRY_RUN=1 cargo run -p slate-engine -- mcp
+hermes mcp add slate -- /absolute/path/to/target/debug/slate-engine mcp
 ```
 
-**Hermes MCP registration**
+The Electron **Run brief** button uses `background: true` and polls `slate_status`. Cancel interrupts Comfy (`POST /interrupt`).
 
-```bash
-hermes mcp add slate -- slate-engine mcp
-# or: hermes mcp add slate -- /absolute/path/to/target/release/slate-engine mcp
-```
+**Dry-run:** `SLATE_DRY_RUN=1 cargo run -p slate-engine -- mcp`
 
-Set the `slate_film_factory` tool timeout to **≥ 900s** (1800s on slow GPUs). Preflight with `slate_health` (Comfy ok + at least one brain).
-
-Skill: [`skills/slate-film-factory/SKILL.md`](skills/slate-film-factory/SKILL.md). Design + plan: [spec](docs/superpowers/specs/2026-08-11-slate-rust-agent-film-factory-design.md) · [plan](docs/superpowers/plans/2026-08-12-slate-rust-film-factory.md).
+Skill: [`skills/slate-film-factory/SKILL.md`](skills/slate-film-factory/SKILL.md). Operator manual: [`docs/engine.md`](docs/engine.md). Original design: [spec](docs/superpowers/specs/2026-08-11-slate-rust-agent-film-factory-design.md) · [plan](docs/superpowers/plans/2026-08-12-slate-rust-film-factory.md).
 
 ## Development
 
@@ -146,6 +147,7 @@ Skill: [`skills/slate-film-factory/SKILL.md`](skills/slate-film-factory/SKILL.md
 | `npm run dev` | Run from source with hot reload |
 | `npm run build` | Production build (electron-vite) |
 | `npm test` | Unit tests (export engine, action engine, audio DSP) |
+| `cargo test --workspace` | Rust domain / brain / Comfy / engine tests |
 | `npm run typecheck` | Strict TypeScript across main, preload, renderer |
 | `node scripts/package-macos.mjs --install` | Build and install `/Applications/Slate.app` |
 | `node scripts/snap.mjs` | Regenerate README screenshots headlessly |

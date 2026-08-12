@@ -21,9 +21,10 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <p>
-          Slate doesn&apos;t generate images or video — it makes the <b>prompts</b> you paste into
-          your generators dramatically better, faster, and consistent across a whole film. The flow
-          is always: <b>craft in Slate → copy → paste into your generator</b>.
+          Slate makes the <b>prompts</b> you paste into any generator dramatically better — craft
+          here, then copy. <b>This fork</b> can also run a local film factory: ◆ <b>Agent</b> in
+          the titlebar talks to <K>slate-engine</K> + ComfyUI on <K>127.0.0.1:8188</K> (optional;
+          no API keys, no bundled weights).
         </p>
         <ol>
           <li>
@@ -346,6 +347,43 @@ const SECTIONS: Section[] = [
     )
   },
   {
+    id: 'agent',
+    label: 'Agent dock & factory',
+    title: 'Local film factory (this fork)',
+    body: (
+      <>
+        <p>
+          ◆ <b>Agent</b> in the titlebar talks to <K>slate-engine</K>. Build it first:{' '}
+          <K>cargo build -p slate-engine</K>, then <b>Connect / start engine</b>.
+        </p>
+        <ul>
+          <li>
+            <b>Run brief</b> — one-line scene → 4–8 shots via a Comfy pack. The dock starts the
+            factory in the background and follows status; it opens the new project when idle.
+          </li>
+          <li>
+            <b>Packs</b> — <K>default-still</K> (Flux, good for a full factory).{' '}
+            <K>default-video</K> is a short LTX 2.3 clip (~2 s). Prefer stills for four shots.
+          </li>
+          <li>
+            <b>Compile cues</b> — music text for Suno/generic. No audio file is rendered.
+          </li>
+          <li>
+            <b>Hermes</b> — blocking <K>slate_film_factory</K>, tool timeout <b>1800s</b>. Do not
+            pass <K>background: true</K> from the agent.
+          </li>
+          <li>
+            <b>Cancel</b> — stops between shots and interrupts the live Comfy prompt.
+          </li>
+        </ul>
+        <p className="help-tip">
+          💡 Comfy must already be on <K>http://127.0.0.1:8188</K>. Weights stay in your Comfy
+          folder — Slate never ships them. Dry-run: <K>SLATE_DRY_RUN=1</K> on the engine process.
+        </p>
+      </>
+    )
+  },
+  {
     id: 'brains',
     label: 'Brains & Troubleshooting',
     title: 'If something feels off',
@@ -370,9 +408,14 @@ const SECTIONS: Section[] = [
             can take a minute; mechanical transforms use faster tiers.
           </li>
           <li>
-            <b>Other apps / agents</b> — Slate runs an MCP server while open, so Claude Code and
-            suite apps can read and write your projects. Connect with:{' '}
-            <K>claude mcp add slate -- node …/slate/mcp/slate-mcp.mjs</K>
+            <b>◆ Agent / slate-engine</b> — <K>cargo build -p slate-engine</K>, then Connect in
+            the Agent dock. <b>Run brief</b> starts a background factory (watch the status pills).
+            Hermes must call blocking <K>slate_film_factory</K> with a <b>1800s</b> tool timeout —
+            never <K>background: true</K> from the agent.
+          </li>
+          <li>
+            <b>Other apps / agents</b> — Slate also runs the original project MCP while open.
+            Connect with: <K>claude mcp add slate -- node …/slate/mcp/slate-mcp.mjs</K>
           </li>
           <li>
             <b>Your data</b> — projects are plain JSON in <K>~/Documents/Slate/</K>. Back up, sync,

@@ -36,6 +36,8 @@ cargo run -p slate-engine -- serve
 # Live one-clip (slow): SLATE_LIVE_VIDEO=1 cargo test -p slate-comfy --test live_ltx_video -- --ignored --nocapture
 ```
 
+**This host (2026-08-12):** `slate_video_00001_.mp4` · 356 KB · 92 s · 768×432 · 49 frames @ 24 fps.
+
 ## Re-align on another machine
 
 1. Confirm LTX 2.3 distilled + Gemma + distilled LoRA names in Comfy.
