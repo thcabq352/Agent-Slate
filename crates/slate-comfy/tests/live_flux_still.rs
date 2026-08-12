@@ -37,7 +37,7 @@ async fn live_default_still_pack_generates_png() {
 
     let path = tokio::time::timeout(
         Duration::from_secs(300),
-        generate_to_file(&client, &packs, "default-still", &values, &dest),
+        generate_to_file(&client, &packs, "default-still", &values, &dest, None),
     )
     .await
     .expect("timed out waiting for Comfy")

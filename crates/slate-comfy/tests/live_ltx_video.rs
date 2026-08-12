@@ -42,7 +42,7 @@ async fn live_default_video_pack_generates_mp4() {
 
     let path = tokio::time::timeout(
         Duration::from_secs(600),
-        generate_to_file(&client, &packs, "default-video", &values, &dest),
+        generate_to_file(&client, &packs, "default-video", &values, &dest, None),
     )
     .await
     .expect("timed out waiting for Comfy LTX")

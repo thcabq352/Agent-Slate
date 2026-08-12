@@ -49,7 +49,7 @@ Image inputs for local brains already use OpenAI multimodal `image_url` (base64)
 | Tool | Notes |
 |------|--------|
 | `slate_health` | Engine + Comfy + brains + **vision/judge** |
-| `slate_film_factory` | Synchronous one-scene pipeline (generate + quality gate) |
+| `slate_film_factory` | One-scene pipeline (generate + quality gate). `background: true` returns immediately; poll `slate_status` |
 | `slate_generate_shot` | Re-roll one shot with quality-gate retries |
 | `slate_judge_take` | Score a media file only (`mediaPath`, optional `prompt` / `continuity`) |
 | `slate_first_ad` | First AD turn: plan/mutate project (`projectId`, `message`, `history?`) + continuity book |
@@ -59,7 +59,7 @@ Image inputs for local brains already use OpenAI multimodal `image_url` (base64)
 | `slate_run_pack` | Generic pack generate (`pack_id`, positive/negative/size/frames/seed, destDir?) |
 | `slate_compile_music` | Compile project music cues to text prompts (`target`: generic\|suno) |
 | `slate_list_projects` / `slate_get_project` / `slate_list_takes` | Store |
-| `slate_status` / `slate_cancel` | Job control (+ continuitySummary, scenePlan, lastShotId) |
+| `slate_status` / `slate_cancel` | Job control. Cancel sets the flag **and** POSTs Comfy `/interrupt` + queue clear |
 
 ### Atomic Notes (Phase 4)
 
@@ -75,7 +75,7 @@ With a project open, click **◆ Agent** in the titlebar:
 
 - Connect/start `slate-engine` (auto-spawns `target/debug|release/slate-engine serve` if built)
 - Live status: Comfy / VL / busy step / continuity plan
-- **Run brief** — `slate_film_factory` (pack + 4–8 shots; opens the new project when done)
+- **Run brief** — `slate_film_factory` with `background: true` (pack + 4–8 shots; status updates live; opens the new project when done)
 - **Compile cues** — `slate_compile_music` (generic or Suno text; no audio render)
 - Engine First AD turn
 - Quality review: judge latest take, **Approve**, **Retry shot**

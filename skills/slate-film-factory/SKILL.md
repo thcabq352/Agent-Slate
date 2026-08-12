@@ -37,7 +37,7 @@ metadata:
 ## Primary tool
 `slate_film_factory` { "brief": "…", "pack_id": "default-still", "shot_count": 4 }
 
-Synchronous: blocks until the run finishes.
+Synchronous: blocks until the run finishes. Electron **Run brief** passes `"background": true` and polls `slate_status`. Agents should keep the blocking call and a ≥900s timeout.
 
 Dry-run: `SLATE_DRY_RUN=1` on the engine process.
 

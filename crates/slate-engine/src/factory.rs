@@ -118,11 +118,11 @@ pub struct SceneBriefLocation {
 }
 
 /// One planned shot from coverage LLM step.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CoverageShotPlan {
-    #[serde(default)]
+    #[serde(default, alias = "title", alias = "shot_name", alias = "shotName")]
     pub name: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "description", alias = "purpose", alias = "beat")]
     pub intent: Option<String>,
     #[serde(default)]
     pub size: Option<String>,
@@ -420,25 +420,106 @@ pub fn actions_from_brief(brief: &SceneBrief, source_brief: &str) -> Vec<AdActio
     actions
 }
 
-/// Parse coverage JSON: bare array or `{ "shots": [...] }`.
+/// Peel string-encoded JSON and common wrapper objects (`result`, `data`, `json`).
+fn coerce_json_value(v: &Value) -> Value {
+    match v {
+        Value::String(s) => serde_json::from_str(s.trim()).unwrap_or_else(|_| v.clone()),
+        Value::Object(map) => {
+            for key in ["json", "result", "data", "output"] {
+                if let Some(inner) = map.get(key) {
+                    if inner.is_object() || inner.is_array() || inner.is_string() {
+                        return coerce_json_value(inner);
+                    }
+                }
+            }
+            v.clone()
+        }
+        _ => v.clone(),
+    }
+}
+
+fn coverage_items(v: &Value) -> Option<Vec<Value>> {
+    if let Some(a) = v.as_array() {
+        return Some(a.clone());
+    }
+    let obj = v.as_object()?;
+    for key in [
+        "shots",
+        "coverage",
+        "shot_list",
+        "shotList",
+        "items",
+        "plan",
+    ] {
+        match obj.get(key) {
+            Some(Value::Array(a)) => return Some(a.clone()),
+            Some(Value::Object(map)) => {
+                let mut items: Vec<(String, Value)> =
+                    map.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+                items.sort_by(|a, b| a.0.cmp(&b.0));
+                return Some(items.into_iter().map(|(_, v)| v).collect());
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn plan_from_coverage_item(item: &Value) -> Option<CoverageShotPlan> {
+    if let Some(s) = item.as_str() {
+        let t = s.trim();
+        if t.is_empty() {
+            return None;
+        }
+        return Some(CoverageShotPlan {
+            name: Some(t.chars().take(48).collect()),
+            intent: Some(t.to_string()),
+            ..CoverageShotPlan::default()
+        });
+    }
+    if !item.is_object() {
+        return None;
+    }
+    let mut plan: CoverageShotPlan = serde_json::from_value(item.clone()).ok()?;
+    if plan
+        .name
+        .as_ref()
+        .map(|s| s.trim().is_empty())
+        .unwrap_or(true)
+    {
+        plan.name = item
+            .get("title")
+            .or_else(|| item.get("shot"))
+            .and_then(|x| x.as_str())
+            .map(|s| s.to_string());
+    }
+    if plan
+        .intent
+        .as_ref()
+        .map(|s| s.trim().is_empty())
+        .unwrap_or(true)
+    {
+        plan.intent = item
+            .get("description")
+            .or_else(|| item.get("purpose"))
+            .or_else(|| item.get("beat"))
+            .and_then(|x| x.as_str())
+            .map(|s| s.to_string());
+    }
+    Some(plan)
+}
+
+/// Parse coverage JSON: array, `{shots|coverage|...}`, string-encoded JSON, or maps.
 pub fn parse_coverage_json(v: &Value) -> Result<Vec<CoverageShotPlan>, String> {
-    if v.is_array() {
-        let plans: Vec<CoverageShotPlan> =
-            serde_json::from_value(v.clone()).map_err(|e| e.to_string())?;
-        if plans.is_empty() {
-            return Err("coverage array empty".into());
-        }
-        return Ok(plans);
+    let v = coerce_json_value(v);
+    let items = coverage_items(&v).ok_or_else(|| {
+        "coverage JSON must be an array or {\"shots\"|\"coverage\":[...]}".to_string()
+    })?;
+    let plans: Vec<CoverageShotPlan> = items.iter().filter_map(plan_from_coverage_item).collect();
+    if plans.is_empty() {
+        return Err("coverage array empty".into());
     }
-    if let Some(shots) = v.get("shots") {
-        let plans: Vec<CoverageShotPlan> =
-            serde_json::from_value(shots.clone()).map_err(|e| e.to_string())?;
-        if plans.is_empty() {
-            return Err("coverage.shots empty".into());
-        }
-        return Ok(plans);
-    }
-    Err("coverage JSON must be an array or {\"shots\":[...]}".into())
+    Ok(plans)
 }
 
 fn set_job(ctx: &EngineCtx, status: JobStatus) {
@@ -744,9 +825,16 @@ pub async fn generate_shot_take(
         // New seed each attempt (randomize also happens in inject if omitted).
         values.insert("seed".into(), json!(rand::random::<u64>() % 1_000_000_000));
 
-        let path = generate_to_file(&client, &ctx.config.packs_dir, pack_id, &values, &dest_dir)
-            .await
-            .map_err(|e| e.to_string())?;
+        let path = generate_to_file(
+            &client,
+            &ctx.config.packs_dir,
+            pack_id,
+            &values,
+            &dest_dir,
+            Some(ctx.cancel.as_ref()),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
         last_path = Some(path.clone());
         receipts.push(format!(
             "• generate attempt {attempt}/{max_attempts}: {}",
@@ -776,6 +864,7 @@ pub async fn generate_shot_take(
             prompt: working_prompt.clone(),
             rating,
             notes,
+            media_path: Some(path.display().to_string()),
         });
         shot.updated_at = now_iso();
 
@@ -1275,16 +1364,22 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                 });
             }
             Err(e) => {
+                let cancelled = ctx.cancel.load(std::sync::atomic::Ordering::SeqCst)
+                    || e.to_lowercase().contains("cancel");
                 warnings.push(format!("generate failed for {name}: {e}"));
                 outcomes.push(ShotOutcome {
                     id,
                     name,
                     prompt,
                     take_path: None,
-                    error: Some(e),
+                    error: Some(if cancelled { "cancelled".into() } else { e }),
                     quality: None,
                     attempts: None,
                 });
+                if cancelled {
+                    receipts.push("• cancel during generate — stopping further shots".into());
+                    break;
+                }
             }
         }
 
@@ -1485,13 +1580,26 @@ pub fn list_takes(project_id: &str, shot_id: Option<&str>) -> Result<Value, Stri
                 }
             }
             for take in &shot.takes {
+                let path = take
+                    .media_path
+                    .clone()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or_else(|| {
+                        take.notes
+                            .split('|')
+                            .next()
+                            .unwrap_or("")
+                            .trim()
+                            .to_string()
+                    });
                 rows.push(json!({
                     "shotId": shot.id,
                     "shotName": shot.name,
                     "takeId": take.id,
                     "loggedAt": take.logged_at,
                     "model": take.model,
-                    "path": take.notes,
+                    "path": path,
+                    "mediaPath": take.media_path,
                     "rating": take.rating,
                 }));
             }
@@ -1572,6 +1680,35 @@ mod tests {
         });
         let plans = parse_coverage_json(&wrapped).unwrap();
         assert_eq!(plans.len(), 4);
+    }
+
+    #[test]
+    fn parse_coverage_accepts_messy_llm_shapes() {
+        let encoded = serde_json::json!("[{\"title\":\"Wide\",\"description\":\"establish\"}]");
+        let plans = parse_coverage_json(&encoded).unwrap();
+        assert_eq!(plans[0].name.as_deref(), Some("Wide"));
+        assert_eq!(plans[0].intent.as_deref(), Some("establish"));
+
+        let coverage_key = serde_json::json!({
+            "coverage": [
+                "Rooftop establish",
+                {"name": "Door", "intent": "reveal"}
+            ]
+        });
+        let plans = parse_coverage_json(&coverage_key).unwrap();
+        assert_eq!(plans.len(), 2);
+        assert_eq!(plans[0].name.as_deref(), Some("Rooftop establish"));
+
+        let wrapped = serde_json::json!({
+            "result": {
+                "shots": {
+                    "1": {"title": "A", "purpose": "x"},
+                    "2": {"name": "B", "intent": "y"}
+                }
+            }
+        });
+        let plans = parse_coverage_json(&wrapped).unwrap();
+        assert_eq!(plans.len(), 2);
     }
 
     #[test]

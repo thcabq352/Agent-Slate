@@ -6,6 +6,10 @@ Notable changes in this maintained fork relative to upstream Slate. Apache-2.0 a
 
 ### Added
 
+- **Take.mediaPath** — first-class path on takes (notes line no longer the only locator)
+- **Comfy interrupt** — `slate_cancel` POSTs `/interrupt` + clears the queue; generate poll honors cancel
+- **Background factory** — `slate_film_factory` `{ background: true }` for the Agent dock; Hermes still uses the blocking call
+- **Coverage parse** — accepts string-encoded JSON, `coverage`/`title`/`purpose`, and shot maps
 - **default-video pack** — real LTX 2.3 distilled T2V API graph (Gemma + distilled LoRA + joint AV), factory canvas clamp (768×432 / 432×768)
 - **Agent dock** — `slate_compile_music` (generic / Suno) and **Run brief** (`slate_film_factory`)
 - **Rust film factory engine** (`slate-engine` and crates):

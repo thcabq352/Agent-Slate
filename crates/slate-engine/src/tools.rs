@@ -140,7 +140,11 @@ pub fn catalog() -> Vec<ToolInfo> {
                     "pack_id": { "type": "string", "description": "Comfy pack id (default default-still)" },
                     "brain": { "type": "string", "enum": ["claude", "codex", "local"] },
                     "shot_count": { "type": "integer", "minimum": 4, "maximum": 8 },
-                    "project_name": { "type": "string" }
+                    "project_name": { "type": "string" },
+                    "background": {
+                        "type": "boolean",
+                        "description": "If true, start the factory and return immediately; poll slate_status"
+                    }
                 },
                 "required": ["brief"]
             }),
@@ -307,7 +311,7 @@ pub async fn invoke(tool: &str, args: Value, ctx: &EngineCtx) -> Result<Value, S
         "slate_run_pack" => slate_run_pack(ctx, args).await,
         "slate_compile_music" => slate_compile_music(args),
         "slate_list_takes" => slate_list_takes(args),
-        "slate_cancel" => slate_cancel(ctx),
+        "slate_cancel" => slate_cancel(ctx).await,
         "slate_status" => slate_status(ctx),
         other => Err(format!("Unknown tool: {other}")),
     }
@@ -393,18 +397,43 @@ async fn slate_film_factory(ctx: &EngineCtx, args: Value) -> Result<Value, Strin
         .or_else(|| args.get("projectName"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
+    let background = args
+        .get("background")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
-    let result = factory::run_film_factory(
-        ctx,
-        FilmFactoryArgs {
-            brief,
-            pack_id,
-            brain,
-            shot_count,
-            project_name,
-        },
-    )
-    .await;
+    let ff = FilmFactoryArgs {
+        brief,
+        pack_id,
+        brain,
+        shot_count,
+        project_name,
+    };
+
+    if background {
+        {
+            let mut job = ctx.job.lock().map_err(|e| format!("job lock: {e}"))?;
+            if job.active {
+                return Err("factory already running".into());
+            }
+            job.active = true;
+            job.step = "starting".into();
+            job.message = "background factory started".into();
+        }
+        ctx.cancel.store(false, Ordering::SeqCst);
+        let ctx = ctx.clone();
+        tokio::spawn(async move {
+            let _ = factory::run_film_factory(&ctx, ff).await;
+        });
+        return Ok(json!({
+            "ok": true,
+            "started": true,
+            "background": true,
+            "message": "factory started; poll slate_status"
+        }));
+    }
+
+    let result = factory::run_film_factory(ctx, ff).await;
     serde_json::to_value(result).map_err(|e| e.to_string())
 }
 
@@ -682,10 +711,16 @@ async fn slate_run_pack(ctx: &EngineCtx, args: Value) -> Result<Value, String> {
 
     crate::config::apply_env(&ctx.config);
     let client = ComfyClient::new(&ctx.config.comfy_base_url).map_err(|e| e.to_string())?;
-    let path =
-        slate_comfy::generate_to_file(&client, &ctx.config.packs_dir, pack_id, &values, &dest)
-            .await
-            .map_err(|e| e.to_string())?;
+    let path = slate_comfy::generate_to_file(
+        &client,
+        &ctx.config.packs_dir,
+        pack_id,
+        &values,
+        &dest,
+        Some(ctx.cancel.as_ref()),
+    )
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(json!({
         "ok": true,
@@ -726,11 +761,20 @@ fn slate_list_takes(args: Value) -> Result<Value, String> {
     factory::list_takes(project_id, shot_id)
 }
 
-fn slate_cancel(ctx: &EngineCtx) -> Result<Value, String> {
+async fn slate_cancel(ctx: &EngineCtx) -> Result<Value, String> {
     ctx.cancel.store(true, Ordering::SeqCst);
+    let url = ctx.config.comfy_base_url.clone();
+    let mut interrupted = false;
+    let mut queue_cleared = false;
+    if let Ok(client) = ComfyClient::new(&url) {
+        interrupted = client.interrupt().await.is_ok();
+        queue_cleared = client.clear_queue().await.is_ok();
+    }
     Ok(json!({
         "ok": true,
-        "message": "cancel requested; factory stops between shots"
+        "message": "cancel requested; Comfy interrupt sent; factory stops between shots",
+        "interrupted": interrupted,
+        "queueCleared": queue_cleared,
     }))
 }
 

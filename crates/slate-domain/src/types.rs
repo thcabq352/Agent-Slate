@@ -50,6 +50,9 @@ pub struct Take {
     pub prompt: String,
     pub rating: TakeRating,
     pub notes: String,
+    /// Absolute path to the generated still/video. Old projects omit this.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media_path: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

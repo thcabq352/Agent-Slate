@@ -1,6 +1,6 @@
 // Hybrid agent dock — engine, film factory, music compile, First AD, quality review.
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useProject } from '../stores/project'
 import type {
   EngineHealth,
@@ -66,6 +66,8 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
   const [factoryResult, setFactoryResult] = useState<FactoryResultView | null>(null)
   const [musicTarget, setMusicTarget] = useState<'generic' | 'suno'>('generic')
   const [compiledMusic, setCompiledMusic] = useState<CompiledMusicView[]>([])
+  const [factoryWatch, setFactoryWatch] = useState(false)
+  const factorySawActive = useRef(false)
 
   const refresh = useCallback(async (): Promise<void> => {
     try {
@@ -93,6 +95,29 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
     return () => clearInterval(t)
   }, [refresh])
 
+  useEffect(() => {
+    if (!factoryWatch) {
+      factorySawActive.current = false
+      return
+    }
+    if (status?.active) {
+      factorySawActive.current = true
+      return
+    }
+    if (!factorySawActive.current) return
+    setFactoryWatch(false)
+    const pid = status?.projectId
+    if (pid) {
+      void (async () => {
+        await refreshMetas()
+        await open(pid)
+        setMsg(`Factory done — opened ${pid}`)
+      })()
+    } else {
+      setMsg(status?.message || 'Factory stopped')
+    }
+  }, [factoryWatch, status?.active, status?.projectId, refreshMetas, open])
+
   const ensure = async (): Promise<void> => {
     setBusy(true)
     setMsg(null)
@@ -114,6 +139,9 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
     for (const sc of [...project.scenes].reverse()) {
       for (const sh of [...sc.shots].reverse()) {
         for (const t of [...sh.takes].reverse()) {
+          if (t.mediaPath && /\.(png|jpe?g|webp|mp4|webm|mkv|gif)$/i.test(t.mediaPath)) {
+            return t.mediaPath
+          }
           const n = t.notes || ''
           // notes: "path | quality:..."
           const path = n.split('|')[0]?.trim()
@@ -273,23 +301,19 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
     setBusy(true)
     setErr(null)
     setFactoryResult(null)
-    setMsg('Factory running — this blocks until all shots finish (often 15+ minutes).')
     try {
       const out = (await window.slate.engineInvoke('slate_film_factory', {
         brief: brief.trim(),
         pack_id: factoryPack,
-        shot_count: shotCount
-      })) as FactoryResultView
-      setFactoryResult(out)
-      if (out.ok && out.projectId) {
-        setMsg(
-          `Factory done${typeof out.elapsedMs === 'number' ? ` in ${Math.round(out.elapsedMs / 1000)}s` : ''} — opened ${out.projectId}`
-        )
-        await refreshMetas()
-        await open(out.projectId)
+        shot_count: shotCount,
+        background: true
+      })) as FactoryResultView & { started?: boolean; message?: string }
+      if (out.started || out.ok) {
+        setFactoryWatch(true)
+        setMsg(out.message || 'Factory running — watch Engine status. Cancel stops between shots and interrupts Comfy.')
       } else {
-        setErr(out.warnings?.join('; ') || 'Factory finished with ok=false')
-        setMsg(out.receipts?.slice(-1)[0] || null)
+        setFactoryResult(out)
+        setErr(out.warnings?.join('; ') || 'Factory did not start')
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
@@ -434,11 +458,18 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
           </div>
           <button
             className="btn btn-sm btn-key"
-            disabled={busy || !brief.trim()}
+            disabled={busy || !brief.trim() || factoryWatch || !!status?.active}
             onClick={() => void runBrief()}
           >
             Run brief
           </button>
+          {(factoryWatch || status?.active) && (
+            <div className="engine-plan">
+              <b>{status?.step || 'starting'}</b>
+              {status?.message ? ` — ${status.message}` : ''}
+              {status?.scenePlan ? ` · ${status.scenePlan}` : ''}
+            </div>
+          )}
           {factoryResult && (
             <div className="engine-plan">
               <b>{factoryResult.ok ? 'Done' : 'Failed'}</b>

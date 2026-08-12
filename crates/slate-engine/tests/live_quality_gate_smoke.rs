@@ -39,7 +39,7 @@ async fn live_still_then_quality_gate() {
     eprintln!("=== generate still (Flux pack) ===");
     let path = tokio::time::timeout(
         Duration::from_secs(300),
-        generate_to_file(&client, &packs, "default-still", &values, &dest),
+        generate_to_file(&client, &packs, "default-still", &values, &dest, None),
     )
     .await
     .expect("generate timeout")

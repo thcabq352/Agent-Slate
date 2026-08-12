@@ -43,6 +43,8 @@ export interface Take {
   prompt: string
   rating: 'circled' | 'good' | 'no-good'
   notes: string
+  /** Absolute path to the generated still/video. Older projects may omit this. */
+  mediaPath?: string | null
 }
 
 export interface Variant {

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use rand::Rng;
@@ -135,10 +136,52 @@ impl ComfyClient {
             .ok_or_else(|| Error::Comfy(format!("missing prompt_id in response: {text}")))
     }
 
+    /// POST `/interrupt` — stop the currently executing prompt (best-effort).
+    pub async fn interrupt(&self) -> Result<()> {
+        let resp = self
+            .http
+            .post(self.url("/interrupt"))
+            .send()
+            .await
+            .map_err(|e| Error::Http(e.to_string()))?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            Err(Error::Http(format!(
+                "POST /interrupt failed ({})",
+                resp.status()
+            )))
+        }
+    }
+
+    /// POST `/queue` with `{ "clear": true }` — drop pending prompts.
+    pub async fn clear_queue(&self) -> Result<()> {
+        let resp = self
+            .http
+            .post(self.url("/queue"))
+            .json(&json!({ "clear": true }))
+            .send()
+            .await
+            .map_err(|e| Error::Http(e.to_string()))?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            Err(Error::Http(format!(
+                "POST /queue clear failed ({})",
+                resp.status()
+            )))
+        }
+    }
+
     /// Poll `GET /history/{prompt_id}` until the entry appears or `timeout` elapses.
     ///
     /// Returns the history **entry** object (contains `outputs`, not the outer map).
-    pub async fn wait_history(&self, prompt_id: &str, timeout: Duration) -> Result<Value> {
+    pub async fn wait_history(
+        &self,
+        prompt_id: &str,
+        timeout: Duration,
+        cancel: Option<&AtomicBool>,
+    ) -> Result<Value> {
         let deadline = Instant::now() + timeout;
         let path = format!("/history/{prompt_id}");
         loop {
@@ -170,6 +213,10 @@ impl ComfyClient {
                 if has_outputs || completed {
                     return Ok(entry.clone());
                 }
+            }
+            if cancel.map(|c| c.load(Ordering::SeqCst)).unwrap_or(false) {
+                let _ = self.interrupt().await;
+                return Err(Error::Comfy("cancelled".into()));
             }
             if Instant::now() >= deadline {
                 return Err(Error::Timeout(format!(
@@ -281,6 +328,7 @@ pub async fn generate_to_file(
     pack_id: &str,
     values: &HashMap<String, Value>,
     dest_dir: &Path,
+    cancel: Option<&AtomicBool>,
 ) -> Result<PathBuf> {
     fs::create_dir_all(dest_dir).map_err(|e| Error::Io {
         path: dest_dir.display().to_string(),
@@ -299,9 +347,12 @@ pub async fn generate_to_file(
 
     let (manifest, workflow) = load_pack(packs_dir, pack_id)?;
     let injected = inject_workflow(workflow, &manifest, values)?;
+    if cancel.map(|c| c.load(Ordering::SeqCst)).unwrap_or(false) {
+        return Err(Error::Comfy("cancelled".into()));
+    }
     let prompt_id = client.queue_prompt(injected).await?;
     let history = client
-        .wait_history(&prompt_id, Duration::from_secs(600))
+        .wait_history(&prompt_id, Duration::from_secs(600), cancel)
         .await?;
     let files = collect_output_files(&history);
     let first = files
