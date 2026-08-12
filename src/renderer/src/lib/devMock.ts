@@ -97,6 +97,18 @@ export function installDevMock(): void {
     },
     onHelpOpen() {
       return () => {}
+    },
+    async engineEnsure() {
+      return { ok: false, message: 'Browser preview — slate-engine not available.', descriptor: null }
+    },
+    async engineHealth() {
+      return { engine: false }
+    },
+    async engineStatus() {
+      return { active: false, step: 'idle', message: 'preview' }
+    },
+    async engineInvoke() {
+      throw new Error('Browser preview — slate-engine not available.')
     }
   }
   ;(window as unknown as { slate: SlateApi }).slate = api

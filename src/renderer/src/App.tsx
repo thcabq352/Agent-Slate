@@ -4,6 +4,7 @@ import Navigator from './components/Navigator'
 import ShotWorkspace from './components/ShotWorkspace'
 import RightRail from './components/RightRail'
 import FirstADPanel from './components/FirstADPanel'
+import EngineDock from './components/EngineDock'
 import HelpModal from './components/HelpModal'
 import AboutModal from './components/AboutModal'
 import Home from './components/Home'
@@ -13,6 +14,7 @@ export default function App(): React.JSX.Element {
   const { project, refreshMetas, refreshBrain, brain, dirty, close } = useProject()
   const [railOpen, setRailOpen] = useState(true)
   const [adOpen, setAdOpen] = useState(false)
+  const [engineOpen, setEngineOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [testState, setTestState] = useState<'idle' | 'busy' | 'ok' | 'fail'>('idle')
@@ -86,9 +88,16 @@ export default function App(): React.JSX.Element {
               <button
                 className={`btn btn-sm ad-toggle ${adOpen ? 'on' : ''}`}
                 onClick={() => setAdOpen((v) => !v)}
-                title="First AD — optional: talk through what you want and it operates Slate for you"
+                title="First AD — optional: talk through what you want and it operates the in-app set"
               >
                 ✦ First AD
+              </button>
+              <button
+                className={`btn btn-sm ad-toggle ${engineOpen ? 'on' : ''}`}
+                onClick={() => setEngineOpen((v) => !v)}
+                title="Agent dock — slate-engine status, First AD, quality review"
+              >
+                ◆ Agent
               </button>
               <button className="btn btn-ghost btn-sm" onClick={close}>
                 Close Project
@@ -119,6 +128,7 @@ export default function App(): React.JSX.Element {
             <RightRail />
           </div>
           {adOpen && <FirstADPanel onClose={() => setAdOpen(false)} />}
+          {engineOpen && <EngineDock onClose={() => setEngineOpen(false)} />}
         </div>
       )}
     </div>

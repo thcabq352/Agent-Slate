@@ -321,6 +321,51 @@ export interface LocalModelInfo {
 
 // ---- IPC surface ----
 
+/** slate-engine HTTP bridge (optional; requires engine serve or auto-start). */
+export interface EngineEnsureResult {
+  ok: boolean
+  message: string
+  descriptor: { port: number; token: string; pid?: number } | null
+}
+
+export interface EngineHealth {
+  engine?: boolean
+  comfy?: { ok: boolean; url?: string }
+  vision?: { ready?: boolean; model?: string; hint?: string; preferredModel?: string }
+  qualityGate?: { passThreshold?: number; maxRetries?: number; judgeModel?: string }
+  dryRun?: boolean
+  [key: string]: unknown
+}
+
+export interface EngineJobStatus {
+  active?: boolean
+  step?: string
+  projectId?: string
+  message?: string
+  continuitySummary?: string
+  lastShotId?: string
+  scenePlan?: string
+  cancelRequested?: boolean
+}
+
+export interface QualityScoresView {
+  visualQuality: number
+  continuity: number
+  artifacts: number
+  promptFidelity: number
+}
+
+export interface QualityVerdictView {
+  accept: boolean
+  scores: QualityScoresView
+  overall: number
+  issues: string[]
+  retryHints: string[]
+  summary: string
+  judgeModel?: string
+  mediaPath?: string
+}
+
 export interface SlateApi {
   listProjects(): Promise<ProjectMeta[]>
   createProject(name: string): Promise<Project>
@@ -344,4 +389,9 @@ export interface SlateApi {
   onProjectsChanged(cb: () => void): () => void
   onHelpOpen(cb: () => void): () => void
   onAboutOpen(cb: () => void): () => void
+  /** Ensure slate-engine is reachable (start binary if present). */
+  engineEnsure(): Promise<EngineEnsureResult>
+  engineHealth(): Promise<EngineHealth>
+  engineStatus(): Promise<EngineJobStatus>
+  engineInvoke(tool: string, args?: Record<string, unknown>): Promise<unknown>
 }

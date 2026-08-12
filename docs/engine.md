@@ -66,6 +66,17 @@ Project-local memory at `{projectDir}/.notes/notes.jsonl` (JSON lines). Kinds:
 
 Factory auto-writes quality + handoff notes after each take. First AD reads recent notes into the prompt and writes scene_plan / continuity locks. No model weights involved.
 
+### Electron hybrid UI (Phase 5)
+
+With a project open, click **◆ Agent** in the titlebar:
+
+- Connect/start `slate-engine` (auto-spawns `target/debug|release/slate-engine serve` if built)
+- Live status: Comfy / VL / busy step / continuity plan
+- Engine First AD turn
+- Quality review: judge latest take, **Approve**, **Retry shot**
+
+Build the engine first: `cargo build -p slate-engine`.
+
 ### Scene continuity (Phase 3)
 
 During `slate_film_factory` generate, a **scene continuity book** accumulates:

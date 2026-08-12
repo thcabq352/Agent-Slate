@@ -14,6 +14,7 @@ import {
 import { startControlServer } from './control'
 import { extractFrames, mediaKind } from './ingest'
 import { analyzeAudio } from './audio'
+import * as engineBridge from './engineBridge'
 import type { BrainBackend, BrainRequest, Project } from '../shared/types'
 
 let win: BrowserWindow | null = null
@@ -286,4 +287,16 @@ ipcMain.handle('sound:analyze', (_e, path: string) => analyzeAudio(path))
 
 ipcMain.handle('clipboard:copy', (_e, text: string) => {
   clipboard.writeText(text)
+})
+
+// ---- slate-engine bridge (Phase 5) ----
+ipcMain.handle('engine:ensure', () => engineBridge.ensureEngine())
+ipcMain.handle('engine:health', () => engineBridge.health())
+ipcMain.handle('engine:status', () => engineBridge.status())
+ipcMain.handle('engine:invoke', (_e, tool: string, args: Record<string, unknown> = {}) =>
+  engineBridge.invoke(tool, args)
+)
+
+app.on('before-quit', () => {
+  engineBridge.stopChild()
 })

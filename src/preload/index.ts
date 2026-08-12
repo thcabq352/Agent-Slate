@@ -38,7 +38,12 @@ const api: SlateApi & { brainRunWith: (req: BrainRequest, backend: BrainBackend)
     const listener = (): void => cb()
     ipcRenderer.on('help:open', listener)
     return () => ipcRenderer.removeListener('help:open', listener)
-  }
+  },
+  engineEnsure: () => ipcRenderer.invoke('engine:ensure'),
+  engineHealth: () => ipcRenderer.invoke('engine:health'),
+  engineStatus: () => ipcRenderer.invoke('engine:status'),
+  engineInvoke: (tool: string, args: Record<string, unknown> = {}) =>
+    ipcRenderer.invoke('engine:invoke', tool, args)
 }
 
 contextBridge.exposeInMainWorld('slate', api)
