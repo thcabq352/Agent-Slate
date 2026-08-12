@@ -1,5 +1,8 @@
 //! System / user prompt templates for film-factory LLM steps.
-//! Live path (Task 13+) uses these with `expect_json` brain runs.
+//!
+//! Live path uses these with `slate_brain::brain_run` (`expect_json: true`).
+//! Requires a healthy claude, codex, or local backend (`!dry_run`).
+//! Dry-run / unhealthy brain uses the stub planner in `factory` instead.
 
 /// Intake: brief → structured `SceneBrief` JSON.
 pub const INTAKE_SYSTEM: &str = r#"You are Slate's First AD intake planner.
