@@ -603,6 +603,7 @@ pub struct GenerateGateResult {
 }
 
 /// Build a short continuity blurb from project bible + scene siblings.
+/// (Live scene book is layered by [`crate::continuity::full_continuity_text`].)
 pub fn continuity_context(project: &Project, scene_idx: usize, shot_idx: usize) -> String {
     let mut lines = Vec::new();
     if !project.logline.is_empty() {
@@ -652,20 +653,25 @@ pub fn continuity_context(project: &Project, scene_idx: usize, shot_idx: usize) 
 }
 
 /// Compile one shot, generate via Comfy (with quality-gate retries), record take.
+///
+/// When `live_continuity` is provided, it is used for the judge brief and updated
+/// after the shot finishes (Phase 3 scene book).
 pub async fn generate_shot_take(
     ctx: &EngineCtx,
     project: &mut Project,
     scene_idx: usize,
     shot_idx: usize,
     pack_id: &str,
+    live_continuity: Option<&mut crate::continuity::SceneContinuityContext>,
 ) -> Result<GenerateGateResult, String> {
+    use crate::continuity::full_continuity_text;
     use crate::quality_gate::{
         apply_retry_hints_to_prompt, format_take_notes, judge_media, rating_for_verdict,
     };
 
     let aspect = project.defaults.aspect_ratio.clone();
     let max_retries = ctx.config.judge_max_retries;
-    let continuity = continuity_context(project, scene_idx, shot_idx);
+    let continuity = full_continuity_text(project, scene_idx, shot_idx, live_continuity.as_deref());
 
     let (shot_id, base_prompt) = {
         let shot = project
@@ -811,6 +817,32 @@ pub async fn generate_shot_take(
     }
 
     let path = last_path.ok_or_else(|| "no take path produced".to_string())?;
+
+    if let Some(book) = live_continuity {
+        let (shot_id, shot_name, intent) = {
+            let shot = &project.scenes[scene_idx].shots[shot_idx];
+            (shot.id.clone(), shot.name.clone(), shot.intent.clone())
+        };
+        let handoff = last_quality
+            .as_ref()
+            .map(|q| {
+                if q.summary.is_empty() {
+                    intent.clone()
+                } else {
+                    q.summary.clone()
+                }
+            })
+            .unwrap_or_else(|| intent.clone());
+        book.record_shot(
+            &shot_id,
+            &shot_name,
+            &intent,
+            Some(&path.display().to_string()),
+            last_quality.as_ref(),
+            handoff,
+        );
+    }
+
     Ok(GenerateGateResult {
         path,
         quality: last_quality,
@@ -838,6 +870,9 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
             step: "health".into(),
             project_id: None,
             message: "starting film factory".into(),
+                    continuity_summary: None,
+            last_shot_id: None,
+            scene_plan: None,
         },
     );
 
@@ -863,7 +898,10 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                                 step: "health".into(),
                                 project_id: None,
                                 message: format!("comfy down: {e}"),
-                            },
+                                        continuity_summary: None,
+            last_shot_id: None,
+            scene_plan: None,
+        },
                         );
                         return FilmFactoryResult {
                             ok: false,
@@ -901,6 +939,9 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
             } else {
                 "brain intake".into()
             },
+                    continuity_summary: None,
+            last_shot_id: None,
+            scene_plan: None,
         },
     );
 
@@ -953,6 +994,9 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
             step: "bible".into(),
             project_id: None,
             message: format!("creating project {project_name}"),
+                    continuity_summary: None,
+            last_shot_id: None,
+            scene_plan: None,
         },
     );
 
@@ -967,7 +1011,10 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                     step: "bible".into(),
                     project_id: None,
                     message: format!("create failed: {e}"),
-                },
+                            continuity_summary: None,
+            last_shot_id: None,
+            scene_plan: None,
+        },
             );
             return FilmFactoryResult {
                 ok: false,
@@ -1010,6 +1057,9 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
             step: "coverage".into(),
             project_id: Some(project.id.clone()),
             message: "planning shots".into(),
+                    continuity_summary: None,
+            last_shot_id: None,
+            scene_plan: None,
         },
     );
 
@@ -1055,7 +1105,10 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                 step: "prompts".into(),
                 project_id: Some(project.id.clone()),
                 message: "writing sectioned prompts".into(),
-            },
+                        continuity_summary: None,
+            last_shot_id: None,
+            scene_plan: None,
+        },
         );
         let backend = live_backend.expect("live path has backend");
         let summary = project_summary(&project);
@@ -1129,11 +1182,21 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                     .map(|s| s.shots.len())
                     .unwrap_or(0)
             ),
+                    continuity_summary: None,
+            last_shot_id: None,
+            scene_plan: None,
         },
     );
 
-    // Steps 5–6 — compile + generate per shot
+    // Steps 5–6 — compile + generate per shot (with live continuity book)
     let mut outcomes: Vec<ShotOutcome> = Vec::new();
+    let mut scene_book =
+        crate::continuity::SceneContinuityContext::from_project_scene(&project, scene_idx);
+    receipts.push(format!(
+        "✓ continuity book: {}",
+        scene_book.summary_one_line()
+    ));
+
     let shot_count = project
         .scenes
         .get(scene_idx)
@@ -1172,10 +1235,27 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                 step: "generate".into(),
                 project_id: Some(project.id.clone()),
                 message: format!("generating {name}"),
+                continuity_summary: Some(scene_book.summary_one_line()),
+                last_shot_id: Some(id.clone()),
+                scene_plan: Some(format!(
+                    "shot {}/{} — {}",
+                    shot_idx + 1,
+                    shot_count,
+                    name
+                )),
             },
         );
 
-        match generate_shot_take(ctx, &mut project, scene_idx, shot_idx, &pack_id).await {
+        match generate_shot_take(
+            ctx,
+            &mut project,
+            scene_idx,
+            shot_idx,
+            &pack_id,
+            Some(&mut scene_book),
+        )
+        .await
+        {
             Ok(res) => {
                 receipts.extend(res.receipts);
                 receipts.push(format!("✓ take for {name}: {}", res.path.display()));
@@ -1208,6 +1288,11 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
         }
     }
 
+    receipts.push(format!(
+        "✓ continuity final: {}",
+        scene_book.summary_one_line()
+    ));
+
     // Step 7 — review
     let takes_ok = outcomes.iter().filter(|s| s.take_path.is_some()).count();
     let ok = takes_ok > 0 && outcomes.iter().all(|s| s.error.as_deref() != Some("fatal"));
@@ -1230,6 +1315,9 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
             } else {
                 "finished with failures".into()
             },
+                    continuity_summary: None,
+            last_shot_id: None,
+            scene_plan: None,
         },
     );
 
@@ -1332,7 +1420,18 @@ pub async fn generate_one_shot(
         (s.id.clone(), s.name.clone(), s.prompt.clone())
     };
 
-    match generate_shot_take(ctx, &mut project, scene_idx, shot_idx, pack).await {
+    let mut book =
+        crate::continuity::SceneContinuityContext::from_project_scene(&project, scene_idx);
+    match generate_shot_take(
+        ctx,
+        &mut project,
+        scene_idx,
+        shot_idx,
+        pack,
+        Some(&mut book),
+    )
+    .await
+    {
         Ok(res) => {
             save_project(&mut project).map_err(|e| e.to_string())?;
             Ok(ShotOutcome {

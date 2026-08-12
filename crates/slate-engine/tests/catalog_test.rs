@@ -6,6 +6,7 @@ fn tool_catalog_includes_health() {
         .collect();
     assert!(names.iter().any(|n| n == "slate_health"));
     assert!(names.iter().any(|n| n == "slate_judge_take"));
+    assert!(names.iter().any(|n| n == "slate_first_ad"));
 }
 
 #[test]

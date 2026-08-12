@@ -3,8 +3,10 @@
 //! Binary entry is `main.rs` (CLI: `serve` default, `mcp` stdio).
 
 pub mod config;
+pub mod continuity;
 pub mod control_desc;
 pub mod factory;
+pub mod first_ad;
 pub mod http;
 pub mod mcp;
 pub mod prompts;

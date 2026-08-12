@@ -52,8 +52,20 @@ Image inputs for local brains already use OpenAI multimodal `image_url` (base64)
 | `slate_film_factory` | Synchronous one-scene pipeline (generate + quality gate) |
 | `slate_generate_shot` | Re-roll one shot with quality-gate retries |
 | `slate_judge_take` | Score a media file only (`mediaPath`, optional `prompt` / `continuity`) |
+| `slate_first_ad` | First AD turn: plan/mutate project (`projectId`, `message`, `history?`) + continuity book |
 | `slate_list_projects` / `slate_get_project` / `slate_list_takes` | Store |
-| `slate_status` / `slate_cancel` | Job control |
+| `slate_status` / `slate_cancel` | Job control (+ continuitySummary, scenePlan, lastShotId) |
+
+### Scene continuity (Phase 3)
+
+During `slate_film_factory` generate, a **scene continuity book** accumulates:
+
+- bible locks (cast wardrobe, location weather/time)
+- per-shot beats (intent, take path, quality pass/fail)
+- handoff line into the next shot
+- standing orders from quality issues
+
+That book is passed into the quality judge and appears on `slate_status` as `continuitySummary` / `scenePlan`.
 
 ### Quality gate loop (Phase 2)
 

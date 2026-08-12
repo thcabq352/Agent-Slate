@@ -19,6 +19,13 @@ pub struct JobStatus {
     pub step: String,
     pub project_id: Option<String>,
     pub message: String,
+    /// Scene continuity one-liner for agents/UI.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub continuity_summary: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_shot_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scene_plan: Option<String>,
 }
 
 /// Shared engine runtime context for tool handlers.
@@ -165,6 +172,29 @@ pub fn catalog() -> Vec<ToolInfo> {
             }),
         },
         ToolInfo {
+            name: "slate_first_ad".into(),
+            description: "First AD conversational turn: plan/mutate a project (args: projectId, message, history?, brain?).".into(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "projectId": { "type": "string" },
+                    "message": { "type": "string" },
+                    "history": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "role": { "type": "string" },
+                                "text": { "type": "string" }
+                            }
+                        }
+                    },
+                    "brain": { "type": "string", "enum": ["claude", "codex", "local"] }
+                },
+                "required": ["projectId", "message"]
+            }),
+        },
+        ToolInfo {
             name: "slate_list_takes".into(),
             description: "List take media for a project (optional shotId filter).".into(),
             input_schema: json!({
@@ -198,6 +228,7 @@ pub async fn invoke(tool: &str, args: Value, ctx: &EngineCtx) -> Result<Value, S
         "slate_film_factory" => slate_film_factory(ctx, args).await,
         "slate_generate_shot" => slate_generate_shot(ctx, args).await,
         "slate_judge_take" => slate_judge_take(ctx, args).await,
+        "slate_first_ad" => slate_first_ad(ctx, args).await,
         "slate_list_takes" => slate_list_takes(args),
         "slate_cancel" => slate_cancel(ctx),
         "slate_status" => slate_status(ctx),
@@ -354,6 +385,75 @@ async fn slate_judge_take(ctx: &EngineCtx, args: Value) -> Result<Value, String>
     .map_err(|e| e.to_string())
 }
 
+async fn slate_first_ad(ctx: &EngineCtx, args: Value) -> Result<Value, String> {
+    use crate::first_ad::{FirstAdArgs, FirstAdChatMsg, run_first_ad};
+
+    let project_id = args
+        .get("projectId")
+        .or_else(|| args.get("project_id"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing required arg: projectId".to_string())?
+        .to_string();
+    let message = args
+        .get("message")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing required arg: message".to_string())?
+        .to_string();
+
+    let history = args
+        .get("history")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| {
+                    let role = m.get("role")?.as_str()?.to_string();
+                    let text = m.get("text")?.as_str()?.to_string();
+                    Some(FirstAdChatMsg { role, text })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let brain = args
+        .get("brain")
+        .and_then(|v| v.as_str())
+        .and_then(|s| match s {
+            "claude" => Some(slate_domain::BrainBackend::Claude),
+            "codex" => Some(slate_domain::BrainBackend::Codex),
+            "local" => Some(slate_domain::BrainBackend::Local),
+            _ => None,
+        });
+
+    let result = run_first_ad(
+        ctx,
+        FirstAdArgs {
+            project_id,
+            message,
+            history,
+            brain,
+        },
+    )
+    .await;
+
+    // Surface planning on job status for agents/UI.
+    if let Ok(mut g) = ctx.job.lock() {
+        g.step = "first_ad".into();
+        g.message = result.reply.chars().take(160).collect();
+        g.project_id = Some(result.continuity.project_id.clone());
+        g.continuity_summary = Some(result.continuity.summary_one_line());
+        g.scene_plan = Some(result.scene_plan_summary.clone());
+        g.last_shot_id = result.focus_shot_id.clone();
+        g.active = false;
+    }
+
+    if !result.ok {
+        return Err(result
+            .error
+            .unwrap_or_else(|| result.reply.clone()));
+    }
+    serde_json::to_value(result).map_err(|e| e.to_string())
+}
+
 fn slate_list_takes(args: Value) -> Result<Value, String> {
     let project_id = args
         .get("projectId")
@@ -387,6 +487,9 @@ fn slate_status(ctx: &EngineCtx) -> Result<Value, String> {
         "step": job.step,
         "projectId": job.project_id,
         "message": job.message,
+        "continuitySummary": job.continuity_summary,
+        "lastShotId": job.last_shot_id,
+        "scenePlan": job.scene_plan,
         "cancelRequested": cancelled,
     }))
 }
