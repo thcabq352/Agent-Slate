@@ -231,6 +231,41 @@ pub fn catalog() -> Vec<ToolInfo> {
             }),
         },
         ToolInfo {
+            name: "slate_list_packs".into(),
+            description: "List Comfy workflow packs (id, modality, ready).".into(),
+            input_schema: json!({ "type": "object", "properties": {} }),
+        },
+        ToolInfo {
+            name: "slate_run_pack".into(),
+            description: "Run a Comfy pack with injected fields (positive, negative, width, height, seed). destDir optional.".into(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "pack_id": { "type": "string" },
+                    "positive": { "type": "string" },
+                    "negative": { "type": "string" },
+                    "width": { "type": "integer" },
+                    "height": { "type": "integer" },
+                    "seed": { "type": "integer" },
+                    "destDir": { "type": "string" }
+                },
+                "required": ["pack_id"]
+            }),
+        },
+        ToolInfo {
+            name: "slate_compile_music".into(),
+            description: "Compile music cues in a project to Suno/generic prompts (no audio generation).".into(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "projectId": { "type": "string" },
+                    "cueId": { "type": "string" },
+                    "target": { "type": "string", "description": "generic | suno" }
+                },
+                "required": ["projectId"]
+            }),
+        },
+        ToolInfo {
             name: "slate_list_takes".into(),
             description: "List take media for a project (optional shotId filter).".into(),
             input_schema: json!({
@@ -267,6 +302,9 @@ pub async fn invoke(tool: &str, args: Value, ctx: &EngineCtx) -> Result<Value, S
         "slate_first_ad" => slate_first_ad(ctx, args).await,
         "slate_note_write" => slate_note_write(args),
         "slate_note_search" => slate_note_search(args),
+        "slate_list_packs" => slate_list_packs(ctx),
+        "slate_run_pack" => slate_run_pack(ctx, args).await,
+        "slate_compile_music" => slate_compile_music(args),
         "slate_list_takes" => slate_list_takes(args),
         "slate_cancel" => slate_cancel(ctx),
         "slate_status" => slate_status(ctx),
@@ -586,6 +624,85 @@ fn slate_note_search(args: Value) -> Result<Value, String> {
         limit,
     })?;
     serde_json::to_value(hits).map_err(|e| e.to_string())
+}
+
+fn slate_list_packs(ctx: &EngineCtx) -> Result<Value, String> {
+    let packs = slate_comfy::list_packs(&ctx.config.packs_dir).map_err(|e| e.to_string())?;
+    serde_json::to_value(packs).map_err(|e| e.to_string())
+}
+
+async fn slate_run_pack(ctx: &EngineCtx, args: Value) -> Result<Value, String> {
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    let pack_id = args
+        .get("pack_id")
+        .or_else(|| args.get("packId"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing required arg: pack_id".to_string())?;
+
+    let dest = args
+        .get("destDir")
+        .or_else(|| args.get("dest_dir"))
+        .and_then(|v| v.as_str())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            std::env::temp_dir().join(format!("slate-pack-{pack_id}-{}", std::process::id()))
+        });
+
+    let mut values: HashMap<String, Value> = HashMap::new();
+    if let Some(s) = args.get("positive").and_then(|v| v.as_str()) {
+        values.insert("positive".into(), json!(s));
+    }
+    if let Some(s) = args.get("negative").and_then(|v| v.as_str()) {
+        values.insert("negative".into(), json!(s));
+    }
+    if let Some(n) = args.get("width").and_then(|v| v.as_u64()) {
+        values.insert("width".into(), json!(n));
+    }
+    if let Some(n) = args.get("height").and_then(|v| v.as_u64()) {
+        values.insert("height".into(), json!(n));
+    }
+    if let Some(n) = args.get("seed").and_then(|v| v.as_u64()) {
+        values.insert("seed".into(), json!(n));
+    }
+
+    crate::config::apply_env(&ctx.config);
+    let client = ComfyClient::new(&ctx.config.comfy_base_url).map_err(|e| e.to_string())?;
+    let path = slate_comfy::generate_to_file(
+        &client,
+        &ctx.config.packs_dir,
+        pack_id,
+        &values,
+        &dest,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(json!({
+        "ok": true,
+        "packId": pack_id,
+        "path": path,
+        "dryRun": ctx.config.dry_run,
+    }))
+}
+
+fn slate_compile_music(args: Value) -> Result<Value, String> {
+    let project_id = args
+        .get("projectId")
+        .or_else(|| args.get("project_id"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing required arg: projectId".to_string())?;
+    let cue_id = args
+        .get("cueId")
+        .or_else(|| args.get("cue_id"))
+        .and_then(|v| v.as_str());
+    let target = args
+        .get("target")
+        .and_then(|v| v.as_str())
+        .unwrap_or("generic");
+    let compiled = crate::music::compile_project_music(project_id, cue_id, target)?;
+    serde_json::to_value(compiled).map_err(|e| e.to_string())
 }
 
 fn slate_list_takes(args: Value) -> Result<Value, String> {

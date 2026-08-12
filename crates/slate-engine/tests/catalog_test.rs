@@ -9,6 +9,9 @@ fn tool_catalog_includes_health() {
     assert!(names.iter().any(|n| n == "slate_first_ad"));
     assert!(names.iter().any(|n| n == "slate_note_write"));
     assert!(names.iter().any(|n| n == "slate_note_search"));
+    assert!(names.iter().any(|n| n == "slate_list_packs"));
+    assert!(names.iter().any(|n| n == "slate_run_pack"));
+    assert!(names.iter().any(|n| n == "slate_compile_music"));
 }
 
 #[test]

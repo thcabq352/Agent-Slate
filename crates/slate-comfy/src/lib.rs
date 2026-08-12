@@ -6,11 +6,13 @@
 mod client;
 mod inject;
 mod manifest;
+mod packs;
 
 pub use client::{
     collect_output_files, generate_to_file, load_pack, ComfyClient, ComfyFileRef,
     DEFAULT_COMFY_BASE, SLATE_DRY_RUN_ENV,
 };
+pub use packs::{list_packs, packs_dir_from_workspace, PackInfo};
 pub use inject::inject_workflow;
 pub use manifest::{
     load_manifest, InputMap, InputMirror, OutputMap, PackLimits, PackManifest,

@@ -55,6 +55,9 @@ Image inputs for local brains already use OpenAI multimodal `image_url` (base64)
 | `slate_first_ad` | First AD turn: plan/mutate project (`projectId`, `message`, `history?`) + continuity book |
 | `slate_note_write` | Write atomic note (`projectId`, `kind`, `title`, `body`, tags/scene/shot optional) |
 | `slate_note_search` | Search notes (`projectId`, `query?`, `kind?`, …) |
+| `slate_list_packs` | Comfy packs (modality, ready) |
+| `slate_run_pack` | Generic pack generate (`pack_id`, positive/negative/size/seed, destDir?) |
+| `slate_compile_music` | Compile project music cues to text prompts (`target`: generic\|suno) |
 | `slate_list_projects` / `slate_get_project` / `slate_list_takes` | Store |
 | `slate_status` / `slate_cancel` | Job control (+ continuitySummary, scenePlan, lastShotId) |
 
@@ -101,4 +104,11 @@ Verdict is stored on the take `notes` line and returned on shot outcomes as `qua
 
 ## Comfy packs
 
-See `workflows/packs/`. Default still pack targets Flux.1-dev fp8 on a local Comfy install.
+See `workflows/packs/`.
+
+| Pack | Modality | Live? |
+|------|----------|--------|
+| `default-still` | image | Yes — Flux.1-dev fp8 on this host |
+| `default-video` | video | Template only — export an LTX/Wan API graph and replace `workflow.api.json` |
+
+`slate_list_packs` reports `ready: false` for PLACEHOLDER templates. Music is **compile-only** (no audio file generation in-engine).

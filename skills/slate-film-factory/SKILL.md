@@ -51,6 +51,8 @@ After generate, the engine runs a **quality gate** (Ollama VL). Failures auto-re
 
 **Atomic Notes:** `slate_note_write` / `slate_note_search` — project memory under `.notes/notes.jsonl` (continuity, quality, scene plans). Auto-written on generate/First AD.
 
+**Packs / music:** `slate_list_packs`, `slate_run_pack` (any pack). `default-still` is live; `default-video` needs a local API graph. `slate_compile_music` compiles project cues to Suno/generic text (no audio render).
+
 ## Register (Hermes / MCP)
 ```bash
 hermes mcp add slate -- slate-engine mcp
