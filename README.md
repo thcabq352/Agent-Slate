@@ -99,6 +99,39 @@ Tools: `list_projects`, `get_project`, `create_project`, `list_shots`, `get_shot
 
 It pairs naturally with the rest of [Wasserman's Filmmaker Suite](https://github.com/wassermanproductions/wassermans-filmmaker-suite) — break down the script in ScriptBreak, block the scene in Blockout, and craft every generator prompt in Slate.
 
+## Rust engine / Hermes (film factory)
+
+The **slate-engine** binary is a local film-factory control plane: project planning, shot continuity, and ComfyUI generation over MCP (primary front: Hermes). It is separate from the Electron prompt studio above.
+
+**Build & run**
+
+```bash
+cargo build -p slate-engine --release
+cargo run -p slate-engine -- mcp          # stdio MCP (Hermes / Claude Code)
+cargo run -p slate-engine -- serve        # loopback HTTP control server
+```
+
+Binary name: `slate-engine` (release: `target/release/slate-engine`).
+
+**ComfyUI** — default API `http://127.0.0.1:8188`. One GPU owner only; do not stack Video Buddy heavy jobs with Slate generations.
+
+**Dry-run** (no GPU / no Comfy) — skip real generation:
+
+```bash
+SLATE_DRY_RUN=1 cargo run -p slate-engine -- mcp
+```
+
+**Hermes MCP registration**
+
+```bash
+hermes mcp add slate -- slate-engine mcp
+# or: hermes mcp add slate -- /absolute/path/to/target/release/slate-engine mcp
+```
+
+Set the `slate_film_factory` tool timeout to **≥ 900s** (1800s on slow GPUs). Preflight with `slate_health` (Comfy ok + at least one brain).
+
+Skill: [`skills/slate-film-factory/SKILL.md`](skills/slate-film-factory/SKILL.md). Design + plan: [spec](docs/superpowers/specs/2026-08-11-slate-rust-agent-film-factory-design.md) · [plan](docs/superpowers/plans/2026-08-12-slate-rust-film-factory.md).
+
 ## Development
 
 | Command | What it does |
