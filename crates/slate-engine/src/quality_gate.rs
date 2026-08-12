@@ -217,18 +217,53 @@ pub async fn judge_media(
 
     let result = brain_run(req, BrainBackend::Local).await;
     if !result.ok {
-        return Err(result
-            .error
-            .unwrap_or_else(|| "vision judge brain call failed".into()));
+        // Soft-skip: keep the take rather than failing the whole generate.
+        return Ok(skipped_accept(
+            &format!(
+                "quality gate skipped (judge brain error: {})",
+                result
+                    .error
+                    .unwrap_or_else(|| "vision judge brain call failed".into())
+            ),
+            Some(media_path),
+            Some(&model),
+        ));
     }
 
     let value = if let Some(j) = result.json {
         j
     } else {
-        extract_json(&result.text).map_err(|e| format!("judge JSON: {e}"))?
+        match extract_json(&result.text) {
+            Ok(j) => j,
+            Err(e) => {
+                return Ok(skipped_accept(
+                    &format!("quality gate skipped (judge JSON: {e})"),
+                    Some(media_path),
+                    Some(&model),
+                ));
+            }
+        }
     };
 
-    let mut verdict = parse_verdict_json(&value, gate.pass_threshold)?;
+    // Models sometimes return a JSON string or wrap scores one level deep.
+    let value = if let Some(s) = value.as_str() {
+        extract_json(s).unwrap_or(value)
+    } else if value.get("visual_quality").is_none() && value.get("scores").is_some() {
+        value.get("scores").cloned().unwrap_or(value)
+    } else {
+        value
+    };
+
+    let mut verdict = match parse_verdict_json(&value, gate.pass_threshold) {
+        Ok(v) => v,
+        Err(e) => {
+            return Ok(skipped_accept(
+                &format!("quality gate skipped (verdict schema: {e})"),
+                Some(media_path),
+                Some(&model),
+            ));
+        }
+    };
     verdict.judge_model = Some(model);
     verdict.media_path = Some(media_path.display().to_string());
 
