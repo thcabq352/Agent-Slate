@@ -415,13 +415,13 @@ export default function HelpModal({ onClose }: { onClose(): void }): React.JSX.E
         </div>
         <div className="help-foot">
           <span>
-            Created by <b>Sam Wasserman</b> ·{' '}
-            <a href="https://wassermanproductions.com" target="_blank" rel="noreferrer">
-              wassermanproductions.com
+            Created by <b>Sam Wasserman</b> · Maintained by{' '}
+            <a href="https://github.com/thcabq352" target="_blank" rel="noreferrer">
+              thcabq352
             </a>{' '}
             ·{' '}
-            <a href="https://wasserman.ai" target="_blank" rel="noreferrer">
-              wasserman.ai
+            <a href="https://wassermanproductions.com" target="_blank" rel="noreferrer">
+              wassermanproductions.com
             </a>
           </span>
           <a className="btn btn-sm btn-key" href="https://ko-fi.com/samwasserman" target="_blank" rel="noreferrer">

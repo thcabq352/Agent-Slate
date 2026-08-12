@@ -57,8 +57,9 @@ app.setName('Slate')
 app.setAboutPanelOptions({
   applicationName: 'Slate',
   applicationVersion: app.getVersion(),
-  copyright: 'Apache-2.0 · Sam Wasserman',
-  credits: 'The prompt studio for AI filmmaking.\nPlan · Direct · Compile',
+  copyright: 'Apache-2.0 · Created by Sam Wasserman · Maintained by thcabq352',
+  credits:
+    'The prompt studio for AI filmmaking.\nPlan · Direct · Compile\n\nOriginal: Sam Wasserman (wassermanproductions.com)\nThis fork: thcabq352 (github.com/thcabq352/slate)',
   iconPath: join(__dirname, '../../build/icon.png')
 })
 

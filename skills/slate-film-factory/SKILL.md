@@ -13,6 +13,7 @@ metadata:
 
 ## Identity
 - Engine: `cargo run -p slate-engine -- mcp` (or installed `slate-engine mcp`)
+- Repo: https://github.com/thcabq352/slate (maintainer: thcabq352; original Slate by Sam Wasserman, Apache-2.0)
 - Comfy API default: http://127.0.0.1:8188
 - Not Video Buddy — Slate owns multi-shot continuity + project bible; Comfy owns pixels
 

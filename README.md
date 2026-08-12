@@ -4,10 +4,12 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
-  <a href="../../releases"><img src="https://img.shields.io/github/v/release/wassermanproductions/slate?include_prereleases&label=download" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/platform-macOS-2f7bf6" alt="Platforms">
+  <a href="https://github.com/thcabq352/slate/releases"><img src="https://img.shields.io/github/v/release/thcabq352/slate?include_prereleases&label=download" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-2f7bf6" alt="Platforms">
   <a href="https://ko-fi.com/samwasserman"><img src="https://img.shields.io/badge/Ko--fi-support%20Sam%20Wasserman-ff5e5b?logo=kofi&logoColor=white" alt="Support Sam Wasserman on Ko-fi"></a>
 </p>
+
+<p align="center"><strong>Maintained fork</strong> by <a href="https://github.com/thcabq352">thcabq352</a> · Original project by <a href="https://wassermanproductions.com">Sam Wasserman</a> · Upstream: <a href="https://github.com/wassermanproductions/slate">wassermanproductions/slate</a></p>
 
 **The prompt studio for AI filmmaking.** Plan shots, direct coverage, spot your score, cast your voices, keep continuity across an entire film — and compile production-ready prompts for the exact generator you're using.
 
@@ -54,17 +56,20 @@ curl -fsSL https://raw.githubusercontent.com/wassermanproductions/slate/main/ins
 
 Or grab `Slate-macOS.zip` from [Releases](../../releases), unzip, and drop `Slate.app` into Applications. (If macOS says the app "is damaged", that's Gatekeeper on unsigned browser downloads — the install script avoids it, or run `xattr -cr /Applications/Slate.app`.)
 
-**From source** — requires **Node 20+**, and **ffmpeg** on your PATH for clip/audio reference analysis (`brew install ffmpeg`):
+**From source (this fork)** — requires **Node 20+**, and **ffmpeg** on your PATH for clip/audio reference analysis (`brew install ffmpeg` / Windows: install ffmpeg and add it to PATH):
 
 ```bash
-git clone https://github.com/wassermanproductions/slate.git
+git clone https://github.com/thcabq352/slate.git
 cd slate
 npm ci
-npm run build
-node scripts/package-macos.mjs --install   # builds and installs /Applications/Slate.app
+npm run dev          # Electron UI with hot reload
+# optional production build:
+# npm run build
+# node scripts/package-macos.mjs --install   # macOS app package
 ```
 
-Or run it straight from source with `npm run dev`.
+Upstream install script (original releases):  
+`curl -fsSL https://raw.githubusercontent.com/wassermanproductions/slate/main/install.sh | bash`
 
 ### The brain — your subscription or a local model, no API keys
 
@@ -147,17 +152,22 @@ Stack: Electron + TypeScript + React, CodeMirror 6 editor, zustand state, vitest
 
 ## Support
 
-A few people asked if they could send tips to support my work developing open source tools. So I set up an optional way in case anyone wants to.
+**This fork** — issues and PRs: [github.com/thcabq352/slate](https://github.com/thcabq352/slate/issues). Maintainer: [thcabq352](https://github.com/thcabq352).
 
-No pressure at all. Using the apps, sharing them, starring the repositories, and contributing code all help too. Thank you.https://github.com/wassermanproductions/slate
+**Upstream author** — optional tips for Sam Wasserman’s open-source work (no pressure):
 
 - [GitHub Sponsors](https://github.com/sponsors/wassermanproductions)
 - [Ko-fi](https://ko-fi.com/samwasserman)
 
 ## License & credits
 
-**Apache License 2.0** — see [LICENSE](LICENSE). Open source: use, modify, fork, and build on it, commercially or otherwise.
+**Apache License 2.0** — see [LICENSE](LICENSE). Use, modify, fork, and redistribute, commercially or otherwise, under those terms.
 
-**Attribution required:** per the [NOTICE](NOTICE) file (Apache 2.0 §4(d)), any use, fork, or redistribution must retain the NOTICE file and credit **Sam Wasserman ([wassermanproductions.com](https://wassermanproductions.com))** in its documentation and about/credits surface.
+**Attribution required (Apache-2.0 §4(d)):** retain [NOTICE](NOTICE) and credit the original author **Sam Wasserman** ([wassermanproductions.com](https://wassermanproductions.com)) in documentation and any about/credits surface. Full compliance notes: [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) · [MAINTAINERS.md](MAINTAINERS.md).
 
-Created by **Sam Wasserman** — [wassermanproductions.com](https://wassermanproductions.com) · [wasserman.ai](https://wasserman.ai).
+| Role | Who |
+|------|-----|
+| **Created by** | **Sam Wasserman** — [wassermanproductions.com](https://wassermanproductions.com) · [wasserman.ai](https://wasserman.ai) · upstream [wassermanproductions/slate](https://github.com/wassermanproductions/slate) |
+| **Maintainer (this fork)** | **thcabq352** — [github.com/thcabq352](https://github.com/thcabq352) · [thcabq352/slate](https://github.com/thcabq352/slate) |
+
+Fork-specific changes: [docs/CHANGELOG-FORK.md](docs/CHANGELOG-FORK.md).

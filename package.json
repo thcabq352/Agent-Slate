@@ -1,9 +1,23 @@
 {
   "name": "slate",
   "version": "0.3.2",
-  "description": "Slate \u2014 the prompt studio for AI filmmaking. Plan shots, direct coverage, keep continuity, and compile production-ready prompts for any image or video generator.",
+  "description": "Slate — the prompt studio for AI filmmaking. Plan shots, direct coverage, keep continuity, and compile production-ready prompts for any image or video generator.",
   "main": "out/main/index.js",
   "author": "Sam Wasserman",
+  "contributors": [
+    {
+      "name": "thcabq352",
+      "url": "https://github.com/thcabq352"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thcabq352/slate.git"
+  },
+  "homepage": "https://github.com/thcabq352/slate",
+  "bugs": {
+    "url": "https://github.com/thcabq352/slate/issues"
+  },
   "license": "Apache-2.0",
   "private": true,
   "scripts": {
@@ -29,7 +43,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^6.0.3",
-    "electron": "^43.1.0",
+    "electron": "^43.4.0",
     "electron-vite": "^6.0.0-beta.1",
     "typescript": "^5.7.2",
     "vite": "^8.1.4",

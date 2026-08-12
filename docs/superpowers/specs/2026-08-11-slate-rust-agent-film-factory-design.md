@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-11  
 **Status:** Draft for user review  
-**Repo:** Slate (wassermanproductions fork lineage)  
+**Repo:** [thcabq352/slate](https://github.com/thcabq352/slate) (maintained fork of [wassermanproductions/slate](https://github.com/wassermanproductions/slate); Apache-2.0 — see NOTICE)  
 **Approach:** A — Rust workflow engine beside Electron; Hermes Gateway as primary non-pro front
 
 ---
