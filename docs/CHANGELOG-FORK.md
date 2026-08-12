@@ -6,6 +6,8 @@ Notable changes in this maintained fork relative to upstream Slate. Apache-2.0 a
 
 ### Added
 
+- **default-video pack** — real LTX 2.3 distilled T2V API graph (Gemma + distilled LoRA + joint AV), factory canvas clamp (768×432 / 432×768)
+- **Agent dock** — `slate_compile_music` (generic / Suno) and **Run brief** (`slate_film_factory`)
 - **Rust film factory engine** (`slate-engine` and crates):
   - `slate-domain` — project model, First AD actions, filesystem store, rule-based Comfy compile
   - `slate-brain` — local OpenAI-compatible servers, Claude Code CLI, Codex CLI
@@ -22,5 +24,5 @@ Notable changes in this maintained fork relative to upstream Slate. Apache-2.0 a
 
 ### Notes
 
-- Live Comfy still generation requires aligning `workflows/packs/default-still` with a local checkpoint graph (fixture pack ships for structure/dry-run).
+- Live Comfy stills: `default-still` (Flux.1-dev fp8). Live video: `default-video` (LTX 2.3 distilled). Re-align checkpoint names if Comfy lists different files.
 - Electron app remains the interactive studio; `slate-engine` is the headless/agent path.

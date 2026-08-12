@@ -246,6 +246,7 @@ pub fn catalog() -> Vec<ToolInfo> {
                     "negative": { "type": "string" },
                     "width": { "type": "integer" },
                     "height": { "type": "integer" },
+                    "frames": { "type": "integer", "description": "Video frame count (LTX length; optional)" },
                     "seed": { "type": "integer" },
                     "destDir": { "type": "string" }
                 },
@@ -373,15 +374,15 @@ async fn slate_film_factory(ctx: &EngineCtx, args: Value) -> Result<Value, Strin
         .or_else(|| args.get("packId"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    let brain = args
-        .get("brain")
-        .and_then(|v| v.as_str())
-        .and_then(|s| match s.to_lowercase().as_str() {
-            "claude" => Some(slate_domain::BrainBackend::Claude),
-            "codex" => Some(slate_domain::BrainBackend::Codex),
-            "local" => Some(slate_domain::BrainBackend::Local),
-            _ => None,
-        });
+    let brain =
+        args.get("brain")
+            .and_then(|v| v.as_str())
+            .and_then(|s| match s.to_lowercase().as_str() {
+                "claude" => Some(slate_domain::BrainBackend::Claude),
+                "codex" => Some(slate_domain::BrainBackend::Codex),
+                "local" => Some(slate_domain::BrainBackend::Local),
+                _ => None,
+            });
     let shot_count = args
         .get("shot_count")
         .or_else(|| args.get("shotCount"))
@@ -462,7 +463,7 @@ async fn slate_judge_take(ctx: &EngineCtx, args: Value) -> Result<Value, String>
 }
 
 async fn slate_first_ad(ctx: &EngineCtx, args: Value) -> Result<Value, String> {
-    use crate::first_ad::{FirstAdArgs, FirstAdChatMsg, run_first_ad};
+    use crate::first_ad::{run_first_ad, FirstAdArgs, FirstAdChatMsg};
 
     let project_id = args
         .get("projectId")
@@ -523,9 +524,7 @@ async fn slate_first_ad(ctx: &EngineCtx, args: Value) -> Result<Value, String> {
     }
 
     if !result.ok {
-        return Err(result
-            .error
-            .unwrap_or_else(|| result.reply.clone()));
+        return Err(result.error.unwrap_or_else(|| result.reply.clone()));
     }
     serde_json::to_value(result).map_err(|e| e.to_string())
 }
@@ -613,7 +612,10 @@ fn slate_note_search(args: Value) -> Result<Value, String> {
         .or_else(|| args.get("shot_id"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    let limit = args.get("limit").and_then(|v| v.as_u64()).map(|n| n as usize);
+    let limit = args
+        .get("limit")
+        .and_then(|v| v.as_u64())
+        .map(|n| n as usize);
 
     let hits = search_notes(NoteSearchArgs {
         project_id,
@@ -663,21 +665,27 @@ async fn slate_run_pack(ctx: &EngineCtx, args: Value) -> Result<Value, String> {
     if let Some(n) = args.get("height").and_then(|v| v.as_u64()) {
         values.insert("height".into(), json!(n));
     }
+    if let Some(n) = args.get("frames").and_then(|v| v.as_u64()) {
+        values.insert("frames".into(), json!(n));
+    }
     if let Some(n) = args.get("seed").and_then(|v| v.as_u64()) {
         values.insert("seed".into(), json!(n));
+    }
+    if let (Some(w), Some(h)) = (
+        values.get("width").and_then(|v| v.as_u64()),
+        values.get("height").and_then(|v| v.as_u64()),
+    ) {
+        let (cw, ch) = crate::factory::canvas_for_pack(pack_id, w as u32, h as u32);
+        values.insert("width".into(), json!(cw));
+        values.insert("height".into(), json!(ch));
     }
 
     crate::config::apply_env(&ctx.config);
     let client = ComfyClient::new(&ctx.config.comfy_base_url).map_err(|e| e.to_string())?;
-    let path = slate_comfy::generate_to_file(
-        &client,
-        &ctx.config.packs_dir,
-        pack_id,
-        &values,
-        &dest,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
+    let path =
+        slate_comfy::generate_to_file(&client, &ctx.config.packs_dir, pack_id, &values, &dest)
+            .await
+            .map_err(|e| e.to_string())?;
 
     Ok(json!({
         "ok": true,
@@ -727,11 +735,7 @@ fn slate_cancel(ctx: &EngineCtx) -> Result<Value, String> {
 }
 
 fn slate_status(ctx: &EngineCtx) -> Result<Value, String> {
-    let job = ctx
-        .job
-        .lock()
-        .map(|g| g.clone())
-        .unwrap_or_default();
+    let job = ctx.job.lock().map(|g| g.clone()).unwrap_or_default();
     let cancelled = ctx.cancel.load(Ordering::SeqCst);
     Ok(json!({
         "active": job.active,

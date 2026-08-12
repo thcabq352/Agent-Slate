@@ -1,16 +1,22 @@
 {
   "id": "default-video",
-  "label": "Default local video (LTX / align locally)",
+  "label": "Default local video (LTX 2.3 distilled T2V)",
   "modality": "video",
   "inputs": {
-    "positive": { "node_id": "6", "field": "text" },
-    "negative": { "node_id": "7", "field": "text" },
-    "width": { "node_id": "5", "field": "width" },
-    "height": { "node_id": "5", "field": "height" },
-    "seed": { "node_id": "3", "field": "seed", "mode": "randomize" }
+    "positive": { "node_id": "10", "field": "text" },
+    "negative": { "node_id": "11", "field": "text" },
+    "width": { "node_id": "20", "field": "width" },
+    "height": { "node_id": "20", "field": "height" },
+    "seed": { "node_id": "42", "field": "noise_seed", "mode": "randomize" },
+    "frames": {
+      "node_id": "20",
+      "field": "length",
+      "optional": true,
+      "mirrors": [{ "node_id": "21", "field": "frames_number" }]
+    }
   },
   "outputs": {
-    "media": { "node_id": "9", "type": "video" }
+    "media": { "node_id": "90", "type": "video" }
   },
   "limits": {
     "aspect_ratios": ["16:9", "9:16"],

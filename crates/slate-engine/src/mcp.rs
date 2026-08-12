@@ -32,10 +32,7 @@ pub async fn serve(ctx: EngineCtx) -> Result<(), String> {
         };
 
         let id = msg.get("id").cloned();
-        let method = msg
-            .get("method")
-            .and_then(|m| m.as_str())
-            .unwrap_or("");
+        let method = msg.get("method").and_then(|m| m.as_str()).unwrap_or("");
         let params = msg.get("params").cloned().unwrap_or(Value::Null);
 
         match method {

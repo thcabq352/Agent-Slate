@@ -71,9 +71,9 @@ fn set_input(
     let inputs = node_obj
         .entry("inputs")
         .or_insert_with(|| Value::Object(serde_json::Map::new()));
-    let inputs_obj = inputs.as_object_mut().ok_or_else(|| {
-        Error::Inject(format!("node `{node_id}` inputs is not a JSON object"))
-    })?;
+    let inputs_obj = inputs
+        .as_object_mut()
+        .ok_or_else(|| Error::Inject(format!("node `{node_id}` inputs is not a JSON object")))?;
     inputs_obj.insert(field.to_string(), value);
     Ok(())
 }

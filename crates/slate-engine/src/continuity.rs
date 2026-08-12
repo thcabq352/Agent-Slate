@@ -70,10 +70,7 @@ impl SceneContinuityContext {
             } else {
                 format!(" time={}", loc.time_of_day)
             };
-            locks.push(format!(
-                "Location {}{}{}",
-                loc.name, weather, tod
-            ));
+            locks.push(format!("Location {}{}{}", loc.name, weather, tod));
         }
 
         Self {
@@ -130,9 +127,10 @@ impl SceneContinuityContext {
 
     /// Text block for prompts / VL judge / First AD.
     pub fn as_prompt_block(&self) -> String {
-        let mut lines = vec![
-            format!("SCENE CONTINUITY — {} [{}]", self.scene_name, self.scene_id),
-        ];
+        let mut lines = vec![format!(
+            "SCENE CONTINUITY — {} [{}]",
+            self.scene_name, self.scene_id
+        )];
         if !self.locks.is_empty() {
             lines.push("LOCKS:".into());
             for l in &self.locks {
@@ -141,7 +139,15 @@ impl SceneContinuityContext {
         }
         if !self.standing_orders.is_empty() {
             lines.push("STANDING ORDERS:".into());
-            for o in self.standing_orders.iter().rev().take(8).collect::<Vec<_>>().into_iter().rev() {
+            for o in self
+                .standing_orders
+                .iter()
+                .rev()
+                .take(8)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+            {
                 lines.push(format!("- {o}"));
             }
         }

@@ -97,10 +97,7 @@ async fn get_tools() -> impl IntoResponse {
     Json(json!({ "tools": tools::catalog() }))
 }
 
-async fn post_invoke(
-    State(state): State<AppState>,
-    Json(body): Json<InvokeBody>,
-) -> Response {
+async fn post_invoke(State(state): State<AppState>, Json(body): Json<InvokeBody>) -> Response {
     match tools::invoke(&body.tool, body.args, state.ctx.as_ref()).await {
         Ok(result) => (StatusCode::OK, Json(json!({ "result": result }))).into_response(),
         Err(e) => {

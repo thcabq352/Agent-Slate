@@ -52,8 +52,7 @@ async fn live_four_shot_factory() {
         ),
     )
     .await
-    .expect("factory timed out (30 min)")
-    ;
+    .expect("factory timed out (30 min)");
 
     eprintln!("ok={}", result.ok);
     eprintln!("project_id={}", result.project_id);
@@ -75,10 +74,9 @@ async fn live_four_shot_factory() {
             s.take_path.as_ref().map(|p| p.display().to_string()),
             s.error,
             s.attempts,
-            s.quality.as_ref().map(|q| format!(
-                "accept={} overall={:.2}",
-                q.accept, q.overall
-            ))
+            s.quality
+                .as_ref()
+                .map(|q| format!("accept={} overall={:.2}", q.accept, q.overall))
         );
     }
 

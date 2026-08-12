@@ -734,26 +734,19 @@ pub async fn generate_shot_take(
             compile_for_comfy(&temp, &aspect)
         };
 
+        let (width, height) = canvas_for_pack(pack_id, compiled.width, compiled.height);
+
         let mut values: HashMap<String, Value> = HashMap::new();
         values.insert("positive".into(), json!(compiled.positive));
         values.insert("negative".into(), json!(compiled.negative));
-        values.insert("width".into(), json!(compiled.width));
-        values.insert("height".into(), json!(compiled.height));
+        values.insert("width".into(), json!(width));
+        values.insert("height".into(), json!(height));
         // New seed each attempt (randomize also happens in inject if omitted).
-        values.insert(
-            "seed".into(),
-            json!(rand::random::<u64>() % 1_000_000_000),
-        );
+        values.insert("seed".into(), json!(rand::random::<u64>() % 1_000_000_000));
 
-        let path = generate_to_file(
-            &client,
-            &ctx.config.packs_dir,
-            pack_id,
-            &values,
-            &dest_dir,
-        )
-        .await
-        .map_err(|e| e.to_string())?;
+        let path = generate_to_file(&client, &ctx.config.packs_dir, pack_id, &values, &dest_dir)
+            .await
+            .map_err(|e| e.to_string())?;
         last_path = Some(path.clone());
         receipts.push(format!(
             "• generate attempt {attempt}/{max_attempts}: {}",
@@ -804,8 +797,7 @@ pub async fn generate_shot_take(
 
         receipts.push(format!(
             "• quality fail overall={:.2} (attempt {attempt}): {}",
-            gate.verdict.overall,
-            gate.verdict.summary
+            gate.verdict.overall, gate.verdict.summary
         ));
 
         if attempt >= max_attempts {
@@ -896,7 +888,7 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
             step: "health".into(),
             project_id: None,
             message: "starting film factory".into(),
-                    continuity_summary: None,
+            continuity_summary: None,
             last_shot_id: None,
             scene_plan: None,
         },
@@ -913,7 +905,9 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
     } else {
         match ComfyClient::new(&ctx.config.comfy_base_url) {
             Ok(client) => match client.health().await {
-                Ok(()) => receipts.push(format!("✓ Comfy healthy at {}", ctx.config.comfy_base_url)),
+                Ok(()) => {
+                    receipts.push(format!("✓ Comfy healthy at {}", ctx.config.comfy_base_url))
+                }
                 Err(e) => {
                     warnings.push(format!("Comfy health failed: {e}"));
                     if !use_stub {
@@ -924,10 +918,10 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                                 step: "health".into(),
                                 project_id: None,
                                 message: format!("comfy down: {e}"),
-                                        continuity_summary: None,
-            last_shot_id: None,
-            scene_plan: None,
-        },
+                                continuity_summary: None,
+                                last_shot_id: None,
+                                scene_plan: None,
+                            },
                         );
                         return FilmFactoryResult {
                             ok: false,
@@ -965,7 +959,7 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
             } else {
                 "brain intake".into()
             },
-                    continuity_summary: None,
+            continuity_summary: None,
             last_shot_id: None,
             scene_plan: None,
         },
@@ -973,11 +967,7 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
 
     let mut scene_brief = if use_stub {
         receipts.push("✓ intake: deterministic stub planner".into());
-        stub_scene_brief(
-            &args.brief,
-            args.shot_count,
-            args.pack_id.as_deref(),
-        )
+        stub_scene_brief(&args.brief, args.shot_count, args.pack_id.as_deref())
     } else {
         let backend = live_backend.expect("live path has backend");
         match live_intake(backend, &args).await {
@@ -987,11 +977,7 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
             }
             Err(e) => {
                 warnings.push(format!("intake brain failed ({e}); falling back to stub"));
-                stub_scene_brief(
-                    &args.brief,
-                    args.shot_count,
-                    args.pack_id.as_deref(),
-                )
+                stub_scene_brief(&args.brief, args.shot_count, args.pack_id.as_deref())
             }
         }
     };
@@ -1020,7 +1006,7 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
             step: "bible".into(),
             project_id: None,
             message: format!("creating project {project_name}"),
-                    continuity_summary: None,
+            continuity_summary: None,
             last_shot_id: None,
             scene_plan: None,
         },
@@ -1037,10 +1023,10 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                     step: "bible".into(),
                     project_id: None,
                     message: format!("create failed: {e}"),
-                            continuity_summary: None,
-            last_shot_id: None,
-            scene_plan: None,
-        },
+                    continuity_summary: None,
+                    last_shot_id: None,
+                    scene_plan: None,
+                },
             );
             return FilmFactoryResult {
                 ok: false,
@@ -1083,7 +1069,7 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
             step: "coverage".into(),
             project_id: Some(project.id.clone()),
             message: "planning shots".into(),
-                    continuity_summary: None,
+            continuity_summary: None,
             last_shot_id: None,
             scene_plan: None,
         },
@@ -1131,10 +1117,10 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                 step: "prompts".into(),
                 project_id: Some(project.id.clone()),
                 message: "writing sectioned prompts".into(),
-                        continuity_summary: None,
-            last_shot_id: None,
-            scene_plan: None,
-        },
+                continuity_summary: None,
+                last_shot_id: None,
+                scene_plan: None,
+            },
         );
         let backend = live_backend.expect("live path has backend");
         let summary = project_summary(&project);
@@ -1181,7 +1167,9 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                     prompt_ok += 1;
                 }
                 Err(e) => {
-                    warnings.push(format!("prompt brain failed for {shot_name} ({e}); keeping prior"));
+                    warnings.push(format!(
+                        "prompt brain failed for {shot_name} ({e}); keeping prior"
+                    ));
                 }
             }
         }
@@ -1202,13 +1190,9 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
             project_id: Some(project.id.clone()),
             message: format!(
                 "{} shots via pack {pack_id}",
-                project
-                    .scenes
-                    .get(0)
-                    .map(|s| s.shots.len())
-                    .unwrap_or(0)
+                project.scenes.get(0).map(|s| s.shots.len()).unwrap_or(0)
             ),
-                    continuity_summary: None,
+            continuity_summary: None,
             last_shot_id: None,
             scene_plan: None,
         },
@@ -1263,12 +1247,7 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
                 message: format!("generating {name}"),
                 continuity_summary: Some(scene_book.summary_one_line()),
                 last_shot_id: Some(id.clone()),
-                scene_plan: Some(format!(
-                    "shot {}/{} — {}",
-                    shot_idx + 1,
-                    shot_count,
-                    name
-                )),
+                scene_plan: Some(format!("shot {}/{} — {}", shot_idx + 1, shot_count, name)),
             },
         );
 
@@ -1341,7 +1320,7 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
             } else {
                 "finished with failures".into()
             },
-                    continuity_summary: None,
+            continuity_summary: None,
             last_shot_id: None,
             scene_plan: None,
         },
@@ -1359,11 +1338,7 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
 }
 
 async fn live_intake(backend: Bb, args: &FilmFactoryArgs) -> Result<SceneBrief, String> {
-    let user = prompts::intake_user(
-        &args.brief,
-        args.shot_count,
-        args.pack_id.as_deref(),
-    );
+    let user = prompts::intake_user(&args.brief, args.shot_count, args.pack_id.as_deref());
     brain_expect_parsed(backend, "intake", prompts::INTAKE_SYSTEM, user, |v| {
         serde_json::from_value::<SceneBrief>(v.clone()).map_err(|e| e.to_string())
     })
@@ -1412,6 +1387,19 @@ async fn live_shot_prompt(
         Ok(p.prompt)
     })
     .await
+}
+
+/// LTX-safe canvas for the default video pack. Flux stills keep compile sizes.
+pub(crate) fn canvas_for_pack(pack_id: &str, width: u32, height: u32) -> (u32, u32) {
+    if pack_id == "default-video" {
+        if width >= height {
+            (768, 432)
+        } else {
+            (432, 768)
+        }
+    } else {
+        (width, height)
+    }
 }
 
 /// Re-generate a single shot (tool: `slate_generate_shot`).
@@ -1629,7 +1617,11 @@ mod tests {
         ];
         let brief = stub_scene_brief("test brief", Some(4), None);
         let actions = coverage_to_actions(&plans, "Scene", &brief, "test brief");
-        assert_eq!(actions.len(), 4, "post-process must pad to min 4 CreateShot actions");
+        assert_eq!(
+            actions.len(),
+            4,
+            "post-process must pad to min 4 CreateShot actions"
+        );
         for a in &actions {
             assert!(matches!(a, AdAction::CreateShot { .. }));
         }
@@ -1650,6 +1642,13 @@ mod tests {
             .collect();
         let padded = pad_coverage_plans(plans);
         assert_eq!(padded.len(), 8);
+    }
+
+    #[test]
+    fn canvas_for_pack_clamps_ltx_video() {
+        assert_eq!(canvas_for_pack("default-video", 1280, 720), (768, 432));
+        assert_eq!(canvas_for_pack("default-video", 720, 1280), (432, 768));
+        assert_eq!(canvas_for_pack("default-still", 1280, 720), (1280, 720));
     }
 
     #[test]

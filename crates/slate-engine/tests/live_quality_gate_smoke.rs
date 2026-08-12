@@ -28,7 +28,10 @@ async fn live_still_then_quality_gate() {
     let prompt = "cinematic still of a courier on a rainy neon rooftop at night, photoreal, wet streets, cyan rim light";
     let mut values = HashMap::new();
     values.insert("positive".into(), json!(prompt));
-    values.insert("negative".into(), json!("blurry, low quality, watermark, text"));
+    values.insert(
+        "negative".into(),
+        json!("blurry, low quality, watermark, text"),
+    );
     values.insert("width".into(), json!(1024));
     values.insert("height".into(), json!(576));
     values.insert("seed".into(), json!(42u64));
@@ -82,7 +85,11 @@ async fn live_still_then_quality_gate() {
     eprintln!("issues={:?}", v.issues);
     eprintln!("retry_hints={:?}", v.retry_hints);
 
-    assert!(!gate.skipped, "expected live VL judge, not skip: {:?}", gate.skip_reason);
+    assert!(
+        !gate.skipped,
+        "expected live VL judge, not skip: {:?}",
+        gate.skip_reason
+    );
     assert!(v.judge_model.is_some());
     assert!(
         (0.0..=1.0).contains(&v.overall),

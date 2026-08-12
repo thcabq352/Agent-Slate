@@ -51,8 +51,8 @@ pub fn write_control_descriptor(port: u16, token: &str) -> io::Result<PathBuf> {
         token: token.to_string(),
         pid: std::process::id(),
     };
-    let json = serde_json::to_string_pretty(&desc)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    let json =
+        serde_json::to_string_pretty(&desc).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
     fs::write(&path, json.as_bytes())?;
 
     #[cfg(unix)]

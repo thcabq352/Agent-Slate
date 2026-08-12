@@ -112,10 +112,7 @@ impl ComfyClient {
             .await
             .map_err(|e| Error::Http(e.to_string()))?;
         let status = resp.status();
-        let text = resp
-            .text()
-            .await
-            .map_err(|e| Error::Http(e.to_string()))?;
+        let text = resp.text().await.map_err(|e| Error::Http(e.to_string()))?;
         if !status.is_success() {
             return Err(Error::Http(format!(
                 "POST /prompt failed ({status}): {text}"
@@ -152,10 +149,7 @@ impl ComfyClient {
                 .await
                 .map_err(|e| Error::Http(e.to_string()))?;
             let status = resp.status();
-            let text = resp
-                .text()
-                .await
-                .map_err(|e| Error::Http(e.to_string()))?;
+            let text = resp.text().await.map_err(|e| Error::Http(e.to_string()))?;
             if !status.is_success() {
                 return Err(Error::Http(format!(
                     "GET /history/{prompt_id} failed ({status}): {text}"
@@ -202,14 +196,9 @@ impl ComfyClient {
         let status = resp.status();
         if !status.is_success() {
             let text = resp.text().await.unwrap_or_default();
-            return Err(Error::Http(format!(
-                "GET /view failed ({status}): {text}"
-            )));
+            return Err(Error::Http(format!("GET /view failed ({status}): {text}")));
         }
-        let bytes = resp
-            .bytes()
-            .await
-            .map_err(|e| Error::Http(e.to_string()))?;
+        let bytes = resp.bytes().await.map_err(|e| Error::Http(e.to_string()))?;
         if let Some(parent) = dest.parent() {
             fs::create_dir_all(parent).map_err(|e| Error::Io {
                 path: parent.display().to_string(),

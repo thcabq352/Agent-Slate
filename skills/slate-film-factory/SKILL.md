@@ -51,7 +51,7 @@ After generate, the engine runs a **quality gate** (Ollama VL). Failures auto-re
 
 **Atomic Notes:** `slate_note_write` / `slate_note_search` — project memory under `.notes/notes.jsonl` (continuity, quality, scene plans). Auto-written on generate/First AD.
 
-**Packs / music:** `slate_list_packs`, `slate_run_pack` (any pack). `default-still` is live; `default-video` needs a local API graph. `slate_compile_music` compiles project cues to Suno/generic text (no audio render).
+**Packs / music:** `slate_list_packs`, `slate_run_pack` (any pack). `default-still` is Flux stills; `default-video` is LTX 2.3 distilled T2V (clamped 768 long-edge, 49 frames). `slate_compile_music` compiles project cues to Suno/generic text (no audio render). Electron Agent dock: **Run brief** + **Compile cues**.
 
 ## Register (Hermes / MCP)
 ```bash

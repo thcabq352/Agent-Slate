@@ -8,9 +8,7 @@ use serde_json::Value;
 use slate_brain::{
     brain_run, brain_status, extract_json, BrainBackend as Bb, BrainRequest, BrainTier,
 };
-use slate_domain::{
-    apply_ad_actions, open_project, save_project, AdAction, ApplyResult, Project,
-};
+use slate_domain::{apply_ad_actions, open_project, save_project, AdAction, ApplyResult, Project};
 
 use crate::config::EngineConfig;
 use crate::continuity::SceneContinuityContext;
@@ -116,7 +114,10 @@ fn project_inventory(p: &Project) -> String {
         lines.push("- (none)".into());
     }
     for sc in &p.scenes {
-        lines.push(format!("- Scene \"{}\" [{}] {}", sc.name, sc.id, sc.synopsis));
+        lines.push(format!(
+            "- Scene \"{}\" [{}] {}",
+            sc.name, sc.id, sc.synopsis
+        ));
         for sh in &sc.shots {
             lines.push(format!(
                 "    · Shot \"{}\" [{}] intent={}",
@@ -427,7 +428,8 @@ fn stub_first_ad(project: &mut Project, args: &FirstAdArgs) -> FirstAdResult {
         reply: if actions.is_empty() {
             "Stub AD: scene already exists — say what to change.".into()
         } else {
-            "Stub AD: created a scene and first shot from your note (dry-run / offline brain).".into()
+            "Stub AD: created a scene and first shot from your note (dry-run / offline brain)."
+                .into()
         },
         receipts: applied.receipts,
         actions_applied: actions.len(),

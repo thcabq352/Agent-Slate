@@ -56,7 +56,7 @@ Image inputs for local brains already use OpenAI multimodal `image_url` (base64)
 | `slate_note_write` | Write atomic note (`projectId`, `kind`, `title`, `body`, tags/scene/shot optional) |
 | `slate_note_search` | Search notes (`projectId`, `query?`, `kind?`, …) |
 | `slate_list_packs` | Comfy packs (modality, ready) |
-| `slate_run_pack` | Generic pack generate (`pack_id`, positive/negative/size/seed, destDir?) |
+| `slate_run_pack` | Generic pack generate (`pack_id`, positive/negative/size/frames/seed, destDir?) |
 | `slate_compile_music` | Compile project music cues to text prompts (`target`: generic\|suno) |
 | `slate_list_projects` / `slate_get_project` / `slate_list_takes` | Store |
 | `slate_status` / `slate_cancel` | Job control (+ continuitySummary, scenePlan, lastShotId) |
@@ -75,6 +75,8 @@ With a project open, click **◆ Agent** in the titlebar:
 
 - Connect/start `slate-engine` (auto-spawns `target/debug|release/slate-engine serve` if built)
 - Live status: Comfy / VL / busy step / continuity plan
+- **Run brief** — `slate_film_factory` (pack + 4–8 shots; opens the new project when done)
+- **Compile cues** — `slate_compile_music` (generic or Suno text; no audio render)
 - Engine First AD turn
 - Quality review: judge latest take, **Approve**, **Retry shot**
 
@@ -109,6 +111,6 @@ See `workflows/packs/`.
 | Pack | Modality | Live? |
 |------|----------|--------|
 | `default-still` | image | Yes — Flux.1-dev fp8 on this host |
-| `default-video` | video | Template only — export an LTX/Wan API graph and replace `workflow.api.json` |
+| `default-video` | video | Yes — LTX 2.3 distilled T2V (768×432 / 49 frames @ 24 fps; factory clamps stills sizes) |
 
-`slate_list_packs` reports `ready: false` for PLACEHOLDER templates. Music is **compile-only** (no audio file generation in-engine).
+`slate_list_packs` reports `ready: false` for PLACEHOLDER templates. Music is **compile-only** (no audio file generation in-engine). The Agent dock **Run brief** button calls `slate_film_factory`; **Compile cues** calls `slate_compile_music`.

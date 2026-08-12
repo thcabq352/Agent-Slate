@@ -58,7 +58,10 @@ pub fn list_packs(packs_dir: &Path) -> Result<Vec<PackInfo>> {
                     has_workflow,
                     ready,
                     note: if placeholder {
-                        Some("template graph — align node ids / checkpoints before live generate".into())
+                        Some(
+                            "template graph — align node ids / checkpoints before live generate"
+                                .into(),
+                        )
                     } else {
                         None
                     },
@@ -97,6 +100,10 @@ mod tests {
         assert!(
             packs.iter().any(|p| p.id == "default-still" && p.ready),
             "expected default-still ready, got {packs:?}"
+        );
+        assert!(
+            packs.iter().any(|p| p.id == "default-video" && p.ready),
+            "expected default-video ready (LTX graph, no PLACEHOLDER), got {packs:?}"
         );
     }
 }

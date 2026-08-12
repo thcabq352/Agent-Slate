@@ -72,13 +72,16 @@ pub fn intake_user(brief: &str, shot_count_hint: Option<u8>, pack_id_hint: Optio
 
 /// User message for coverage planning.
 pub fn coverage_user(scene_brief_json: &str, project_summary: &str) -> String {
-    format!(
-        "Scene brief JSON:\n{scene_brief_json}\n\nProject summary:\n{project_summary}\n"
-    )
+    format!("Scene brief JSON:\n{scene_brief_json}\n\nProject summary:\n{project_summary}\n")
 }
 
 /// User message for a single shot prompt.
-pub fn prompt_user(project_summary: &str, shot_name: &str, intent: &str, spec_json: &str) -> String {
+pub fn prompt_user(
+    project_summary: &str,
+    shot_name: &str,
+    intent: &str,
+    spec_json: &str,
+) -> String {
     format!(
         "Project:\n{project_summary}\n\nShot: {shot_name}\nIntent: {intent}\nSpec JSON: {spec_json}\n"
     )

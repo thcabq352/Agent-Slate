@@ -1,4 +1,4 @@
-// Hybrid agent dock — engine status, First AD live plan, quality review controls.
+// Hybrid agent dock — engine, film factory, music compile, First AD, quality review.
 
 import React, { useCallback, useEffect, useState } from 'react'
 import { useProject } from '../stores/project'
@@ -21,8 +21,35 @@ function scoreRow(label: string, v: number): React.JSX.Element {
   )
 }
 
+type PackRow = {
+  id: string
+  label: string
+  modality: string
+  ready: boolean
+  note?: string
+}
+
+type CompiledMusicView = {
+  cueId: string
+  name: string
+  target: string
+  prompt: string
+  lyrics?: string
+  durationSec?: number
+}
+
+type FactoryResultView = {
+  ok?: boolean
+  projectId?: string
+  sceneId?: string
+  shots?: { id?: string; name?: string; error?: string | null }[]
+  receipts?: string[]
+  warnings?: string[]
+  elapsedMs?: number
+}
+
 export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.Element {
-  const { project, refreshMetas } = useProject()
+  const { project, refreshMetas, open } = useProject()
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
@@ -32,6 +59,13 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
   const [adInput, setAdInput] = useState('')
   const [adReply, setAdReply] = useState<string | null>(null)
   const [adReceipts, setAdReceipts] = useState<string[]>([])
+  const [packs, setPacks] = useState<PackRow[]>([])
+  const [brief, setBrief] = useState('')
+  const [factoryPack, setFactoryPack] = useState('default-still')
+  const [shotCount, setShotCount] = useState(4)
+  const [factoryResult, setFactoryResult] = useState<FactoryResultView | null>(null)
+  const [musicTarget, setMusicTarget] = useState<'generic' | 'suno'>('generic')
+  const [compiledMusic, setCompiledMusic] = useState<CompiledMusicView[]>([])
 
   const refresh = useCallback(async (): Promise<void> => {
     try {
@@ -39,6 +73,12 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
       setHealth(h)
       const s = await window.slate.engineStatus()
       setStatus(s)
+      try {
+        const listed = (await window.slate.engineInvoke('slate_list_packs', {})) as PackRow[]
+        if (Array.isArray(listed)) setPacks(listed)
+      } catch {
+        /* packs optional */
+      }
       setErr(null)
     } catch (e) {
       setHealth(null)
@@ -77,7 +117,7 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
           const n = t.notes || ''
           // notes: "path | quality:..."
           const path = n.split('|')[0]?.trim()
-          if (path && /\.(png|jpe?g|webp)$/i.test(path)) return path
+          if (path && /\.(png|jpe?g|webp|mp4|webm|mkv|gif)$/i.test(path)) return path
           if (path && path.includes('takes')) return path.split(' ')[0]
         }
       }
@@ -193,6 +233,72 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
     }
   }
 
+  const compileMusic = async (): Promise<void> => {
+    if (!project) return
+    setBusy(true)
+    setErr(null)
+    try {
+      const out = (await window.slate.engineInvoke('slate_compile_music', {
+        projectId: project.id,
+        target: musicTarget
+      })) as CompiledMusicView[]
+      const rows = Array.isArray(out) ? out : []
+      setCompiledMusic(rows)
+      setMsg(
+        rows.length === 0
+          ? 'No music cues on this project — add one in Sound or ask the First AD.'
+          : `Compiled ${rows.length} cue${rows.length === 1 ? '' : 's'} (${musicTarget})`
+      )
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const copyPrompt = async (text: string): Promise<void> => {
+    try {
+      await window.slate.copyText(text)
+      setMsg('Copied music prompt')
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const runBrief = async (): Promise<void> => {
+    if (!brief.trim()) {
+      setErr('Write a scene brief first.')
+      return
+    }
+    setBusy(true)
+    setErr(null)
+    setFactoryResult(null)
+    setMsg('Factory running — this blocks until all shots finish (often 15+ minutes).')
+    try {
+      const out = (await window.slate.engineInvoke('slate_film_factory', {
+        brief: brief.trim(),
+        pack_id: factoryPack,
+        shot_count: shotCount
+      })) as FactoryResultView
+      setFactoryResult(out)
+      if (out.ok && out.projectId) {
+        setMsg(
+          `Factory done${typeof out.elapsedMs === 'number' ? ` in ${Math.round(out.elapsedMs / 1000)}s` : ''} — opened ${out.projectId}`
+        )
+        await refreshMetas()
+        await open(out.projectId)
+      } else {
+        setErr(out.warnings?.join('; ') || 'Factory finished with ok=false')
+        setMsg(out.receipts?.slice(-1)[0] || null)
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+      await refresh()
+    }
+  }
+
   const cancel = async (): Promise<void> => {
     try {
       await window.slate.engineInvoke('slate_cancel', {})
@@ -211,7 +317,7 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
       <div className="engine-dock-head">
         <div>
           <div className="engine-dock-title">Agent dock</div>
-          <div className="engine-dock-sub">Engine · First AD · Quality review</div>
+          <div className="engine-dock-sub">Engine · Factory · Music · First AD · Quality</div>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={onClose}>
           Close
@@ -281,6 +387,114 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
               ))}
             </ul>
           )}
+        </section>
+
+        <section className="engine-section">
+          <div className="engine-section-title">Film factory</div>
+          <textarea
+            className="engine-ad-input"
+            rows={3}
+            placeholder="One-line scene brief — e.g. a courier waits on a rainy neon rooftop, then a door opens"
+            value={brief}
+            onChange={(e) => setBrief(e.target.value)}
+            disabled={busy}
+          />
+          <div className="engine-row">
+            <select
+              className="engine-select"
+              value={factoryPack}
+              onChange={(e) => setFactoryPack(e.target.value)}
+              disabled={busy}
+            >
+              {(packs.length > 0
+                ? packs
+                : [
+                    { id: 'default-still', label: 'default-still', modality: 'image', ready: true },
+                    { id: 'default-video', label: 'default-video', modality: 'video', ready: true }
+                  ]
+              ).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label || p.id}
+                  {p.ready === false ? ' (not ready)' : ''}
+                </option>
+              ))}
+            </select>
+            <select
+              className="engine-select"
+              value={shotCount}
+              onChange={(e) => setShotCount(Number(e.target.value))}
+              disabled={busy}
+            >
+              {[4, 5, 6, 7, 8].map((n) => (
+                <option key={n} value={n}>
+                  {n} shots
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            className="btn btn-sm btn-key"
+            disabled={busy || !brief.trim()}
+            onClick={() => void runBrief()}
+          >
+            Run brief
+          </button>
+          {factoryResult && (
+            <div className="engine-plan">
+              <b>{factoryResult.ok ? 'Done' : 'Failed'}</b>
+              {typeof factoryResult.elapsedMs === 'number'
+                ? ` · ${Math.round(factoryResult.elapsedMs / 1000)}s`
+                : ''}
+              {factoryResult.shots
+                ? ` · ${factoryResult.shots.filter((s) => !s.error).length}/${factoryResult.shots.length} shots`
+                : ''}
+              {factoryResult.warnings && factoryResult.warnings.length > 0 && (
+                <ul className="engine-receipts">
+                  {factoryResult.warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </section>
+
+        <section className="engine-section">
+          <div className="engine-section-title">Music compile</div>
+          <p className="engine-msg">
+            Text prompts only — no audio render. {project?.music?.length ?? 0} cue
+            {(project?.music?.length ?? 0) === 1 ? '' : 's'} on this project.
+          </p>
+          <div className="engine-row">
+            <select
+              className="engine-select"
+              value={musicTarget}
+              onChange={(e) => setMusicTarget(e.target.value as 'generic' | 'suno')}
+              disabled={busy || !project}
+            >
+              <option value="generic">generic</option>
+              <option value="suno">suno</option>
+            </select>
+            <button
+              className="btn btn-sm"
+              disabled={busy || !project}
+              onClick={() => void compileMusic()}
+            >
+              Compile cues
+            </button>
+          </div>
+          {compiledMusic.map((c) => (
+            <div key={c.cueId} className="engine-music-card">
+              <div className="engine-verdict-head">
+                {c.name} · {c.target}
+                {typeof c.durationSec === 'number' ? ` · ${c.durationSec}s` : ''}
+              </div>
+              <pre className="engine-music-prompt">{c.prompt}</pre>
+              <button className="btn btn-ghost btn-sm" onClick={() => void copyPrompt(c.prompt)}>
+                Copy prompt
+              </button>
+            </div>
+          ))}
         </section>
 
         <section className="engine-section">

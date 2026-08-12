@@ -68,3 +68,53 @@ fn default_still_manifest_mirrors_width_height() {
     assert_eq!(m.inputs["height"].mirrors[0].field, "height");
     assert_eq!(m.inputs["positive"].node_id, "6");
 }
+
+#[test]
+fn default_video_manifest_maps_ltx_nodes() {
+    let pack = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../workflows/packs/default-video/manifest.json");
+    let m = load_manifest(&pack).expect("default-video manifest");
+    assert_eq!(m.id, "default-video");
+    assert_eq!(m.modality, "video");
+    assert_eq!(m.inputs["positive"].node_id, "10");
+    assert_eq!(m.inputs["negative"].node_id, "11");
+    assert_eq!(m.inputs["width"].node_id, "20");
+    assert_eq!(m.inputs["seed"].node_id, "42");
+    assert_eq!(m.inputs["seed"].field, "noise_seed");
+    assert_eq!(m.inputs["seed"].mode.as_deref(), Some("randomize"));
+    assert!(m.inputs["frames"].optional);
+    assert_eq!(m.inputs["frames"].mirrors[0].node_id, "21");
+    assert_eq!(m.outputs["media"].node_id, "90");
+}
+
+#[test]
+fn inject_default_video_positive_and_frames() {
+    let root =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../workflows/packs/default-video");
+    let manifest = load_manifest(&root.join("manifest.json")).unwrap();
+    let workflow: Value =
+        serde_json::from_str(&std::fs::read_to_string(root.join("workflow.api.json")).unwrap())
+            .unwrap();
+    assert!(
+        !serde_json::to_string(&workflow)
+            .unwrap()
+            .contains("PLACEHOLDER"),
+        "default-video must not ship a PLACEHOLDER graph"
+    );
+
+    let mut values = HashMap::new();
+    values.insert("positive".into(), json!("neon rooftop courier"));
+    values.insert("negative".into(), json!("blurry"));
+    values.insert("width".into(), json!(768));
+    values.insert("height".into(), json!(432));
+    values.insert("frames".into(), json!(49));
+    values.insert("seed".into(), json!(7));
+
+    let out = inject_workflow(workflow, &manifest, &values).expect("inject");
+    assert_eq!(out["10"]["inputs"]["text"], "neon rooftop courier");
+    assert_eq!(out["11"]["inputs"]["text"], "blurry");
+    assert_eq!(out["20"]["inputs"]["width"], 768);
+    assert_eq!(out["20"]["inputs"]["length"], 49);
+    assert_eq!(out["21"]["inputs"]["frames_number"], 49);
+    assert_eq!(out["42"]["inputs"]["noise_seed"], 7);
+}

@@ -262,11 +262,7 @@ pub fn note_quality(
     write_note(NoteWriteArgs {
         project_id: project_id.to_string(),
         kind: "quality_feedback".into(),
-        title: format!(
-            "{} — {}",
-            shot_name,
-            if accept { "PASS" } else { "FAIL" }
-        ),
+        title: format!("{} — {}", shot_name, if accept { "PASS" } else { "FAIL" }),
         body: format!(
             "overall={overall:.2} accept={accept}. {summary}. issues: {}",
             if issues.is_empty() {
@@ -275,7 +271,10 @@ pub fn note_quality(
                 issues.join("; ")
             }
         ),
-        tags: vec!["quality".into(), if accept { "pass" } else { "fail" }.into()],
+        tags: vec![
+            "quality".into(),
+            if accept { "pass" } else { "fail" }.into(),
+        ],
         scene_id: scene_id.map(|s| s.to_string()),
         shot_id: shot_id.map(|s| s.to_string()),
     })

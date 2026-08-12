@@ -43,5 +43,27 @@ fn collect_output_files_multiple_nodes() {
     let files = collect_output_files(&history);
     assert_eq!(files.len(), 2);
     assert!(files.iter().any(|f| f.filename == "a.png"));
-    assert!(files.iter().any(|f| f.filename == "b.png" && f.subfolder == "shots"));
+    assert!(files
+        .iter()
+        .any(|f| f.filename == "b.png" && f.subfolder == "shots"));
+}
+
+#[test]
+fn collect_output_files_savevideo_uses_images_key() {
+    // Comfy SaveVideo / PreviewVideo serializes as images + animated.
+    let history = serde_json::json!({
+        "outputs": {
+            "90": {
+                "images": [{
+                    "filename": "slate_video_00001_.mp4",
+                    "subfolder": "",
+                    "type": "output"
+                }],
+                "animated": [true]
+            }
+        }
+    });
+    let files = collect_output_files(&history);
+    assert_eq!(files.len(), 1);
+    assert_eq!(files[0].filename, "slate_video_00001_.mp4");
 }
