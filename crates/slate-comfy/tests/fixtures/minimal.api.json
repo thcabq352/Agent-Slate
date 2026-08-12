@@ -1,0 +1,5 @@
+{
+  "3": { "class_type": "KSampler", "inputs": { "seed": 0, "steps": 20 } },
+  "6": { "class_type": "CLIPTextEncode", "inputs": { "text": "" } },
+  "7": { "class_type": "CLIPTextEncode", "inputs": { "text": "" } }
+}

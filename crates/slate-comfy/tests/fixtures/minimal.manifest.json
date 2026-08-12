@@ -1,0 +1,18 @@
+{
+  "id": "minimal",
+  "label": "Minimal fixture pack",
+  "modality": "image",
+  "inputs": {
+    "positive": { "node_id": "6", "field": "text" },
+    "negative": { "node_id": "7", "field": "text" },
+    "seed": { "node_id": "3", "field": "seed", "mode": "randomize" }
+  },
+  "outputs": {
+    "media": { "node_id": "9", "type": "image" }
+  },
+  "limits": {
+    "aspect_ratios": ["16:9", "9:16", "1:1"],
+    "max_duration_sec": null
+  },
+  "compile_profile": "comfyui"
+}
