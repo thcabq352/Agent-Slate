@@ -105,5 +105,13 @@ mod tests {
             packs.iter().any(|p| p.id == "default-video" && p.ready),
             "expected default-video ready (LTX graph, no PLACEHOLDER), got {packs:?}"
         );
+        assert!(
+            packs.iter().any(|p| p.id == "default-i2v" && p.ready),
+            "expected default-i2v ready, got {packs:?}"
+        );
+        assert!(
+            packs.iter().any(|p| p.id == "default-flf2v" && p.ready),
+            "expected default-flf2v ready, got {packs:?}"
+        );
     }
 }

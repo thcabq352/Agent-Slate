@@ -9,6 +9,7 @@ pub mod factory;
 pub mod first_ad;
 pub mod http;
 pub mod mcp;
+pub mod media;
 pub mod music;
 pub mod notes;
 pub mod prompts;

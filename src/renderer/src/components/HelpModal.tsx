@@ -362,8 +362,9 @@ const SECTIONS: Section[] = [
             factory in the background and follows status; it opens the new project when idle.
           </li>
           <li>
-            <b>Packs</b> — <K>default-still</K> (Flux, good for a full factory).{' '}
-            <K>default-video</K> is a short LTX 2.3 clip (~2 s). Prefer stills for four shots.
+            <b>Packs</b> — <K>default-still</K> (Flux, best for a 4-shot factory).{' '}
+            <K>default-i2v</K> / <K>default-flf2v</K> / <K>default-video</K> are short LTX clips
+            (~2 s). Prefer stills, then I2V the hero.
           </li>
           <li>
             <b>Compile cues</b> — music text for Suno/generic. No audio file is rendered.

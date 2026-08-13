@@ -4,6 +4,14 @@ Notable changes in this maintained fork relative to upstream Slate. Apache-2.0 a
 
 Current snapshot: [STATUS.md](STATUS.md).
 
+## 2026-08-13
+
+- **`default-i2v` / `default-flf2v`** — LTX 2.3 distilled image-to-video and first-last-frame packs
+- Factory auto-keyframes via Flux when those packs need an image
+- VL judge extracts the first frame from mp4
+- **`slate_assemble`** + Agent dock **Assemble cut**
+- Shareable skill zip: `share/slate-film-factory.zip`
+
 ## 2026-08-12
 
 ### Docs

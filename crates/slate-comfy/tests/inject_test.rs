@@ -118,3 +118,25 @@ fn inject_default_video_positive_and_frames() {
     assert_eq!(out["21"]["inputs"]["frames_number"], 49);
     assert_eq!(out["42"]["inputs"]["noise_seed"], 7);
 }
+
+#[test]
+fn default_i2v_and_flf2v_manifests() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../workflows/packs");
+    let i2v = load_manifest(&root.join("default-i2v/manifest.json")).unwrap();
+    assert_eq!(i2v.inputs["image"].node_id, "8");
+    assert_eq!(i2v.inputs["positive"].node_id, "10");
+    let flf = load_manifest(&root.join("default-flf2v/manifest.json")).unwrap();
+    assert_eq!(flf.inputs["image"].node_id, "8");
+    assert_eq!(flf.inputs["image_end"].node_id, "18");
+    let wf: Value = serde_json::from_str(
+        &std::fs::read_to_string(root.join("default-i2v/workflow.api.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(wf["20"]["class_type"], "LTXVImgToVideo");
+    let wff: Value = serde_json::from_str(
+        &std::fs::read_to_string(root.join("default-flf2v/workflow.api.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(wff["23"]["class_type"], "LTXVAddGuide");
+    assert_eq!(wff["24"]["inputs"]["frame_idx"], -1);
+}

@@ -90,7 +90,8 @@ Image brains use OpenAI multimodal `image_url` (base64). **Video files are not f
 | `slate_first_ad` | Conversational plan/mutate (`projectId`, `message`, `history?`) |
 | `slate_note_write` / `slate_note_search` | Atomic notes |
 | `slate_list_packs` | Pack id, modality, `ready` |
-| `slate_run_pack` | Generic generate (`pack_id`, positive/negative/width/height/`frames`/seed, destDir?) |
+| `slate_run_pack` | Generic generate (`pack_id`, positive/negative/width/height/`frames`/`image`/`image_end`/seed, destDir?) |
+| `slate_assemble` | Concat takes → `{project}/cut/slate_cut.mp4` (`circledOnly?`) |
 | `slate_compile_music` | Cue → Suno/generic text (`projectId`, `target`, optional `cueId`) |
 | `slate_list_projects` / `slate_get_project` / `slate_list_takes` | Store |
 | `slate_status` / `slate_cancel` | Job control. Cancel sets the flag **and** POSTs Comfy `/interrupt` + queue clear |
@@ -125,6 +126,8 @@ See `workflows/packs/`.
 |------|----------|--------|
 | `default-still` | image | Yes — Flux.1-dev fp8 |
 | `default-video` | video | Yes — LTX 2.3 distilled T2V (factory clamps 768×432 / 432×768; 49 frames @ 24 fps) |
+| `default-i2v` | video | Yes — LTX I2V (`LTXVImgToVideo`). Factory makes/reuses a Flux keyframe |
+| `default-flf2v` | video | Yes — first+last frame (`LTXVAddGuide` 0 / −1) |
 
 `ready: false` if `workflow.api.json` still contains `PLACEHOLDER` / `ALIGN_ME`. Music is compile-only.
 

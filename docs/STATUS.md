@@ -1,4 +1,4 @@
-# Status — 2026-08-12
+# Status — 2026-08-13
 
 Canonical snapshot of the **thcabq352/slate** fork (Agent-Slate). Historical design lives in [the spec](superpowers/specs/2026-08-11-slate-rust-agent-film-factory-design.md) and [the plan](superpowers/plans/2026-08-12-slate-rust-film-factory.md); this file is what is **shipped**.
 
@@ -28,6 +28,11 @@ No API keys. No model weights in the package. Local Comfy on `http://127.0.0.1:8
 | `slate_cancel` | Flag **and** Comfy `POST /interrupt` + queue clear |
 | Coverage LLM parse | Tolerant (`coverage`/`title`/`purpose`, string JSON, shot maps) |
 | Music | Compile-only (Suno/generic text; no audio render) |
+| `default-i2v` | LTX I2V — factory makes/reuses a Flux keyframe then animates |
+| `default-flf2v` | LTX first+last frame (`LTXVAddGuide` 0 / −1) |
+| Video VL judge | First frame extracted with ffmpeg |
+| `slate_assemble` | Concat takes → `{project}/cut/slate_cut.mp4` |
+| Shareable skill | `skills/slate-film-factory/` + `share/slate-film-factory.zip` |
 
 HEAD around this write-up: `9b708ba` on `main` (see [CHANGELOG-FORK.md](CHANGELOG-FORK.md)).
 
@@ -62,6 +67,8 @@ slate:
 |------|--------|--------|--------|
 | `default-still` | Flux UNET + DualCLIP + FluxGuidance + EmptySD3 + KSampler 8 | `6/7` text, `27`+`30` size, `3` seed | 1280×720 compile sizes |
 | `default-video` | LTX 2.3 distilled T2V + Gemma + distilled LoRA + joint AV | `10/11` text, `20` size, `42` `noise_seed`, optional `frames` | Factory clamps to **768×432** / **432×768**; default **49** frames |
+| `default-i2v` | Same stack + `LTXVImgToVideo` | + `image` → VHS_LoadImagePath `8` | Factory keyframe via `default-still` if no still exists |
+| `default-flf2v` | `LTXVAddGuide` start/end + crop | `image` + `image_end` | End frame = next shot still or same keyframe |
 
 `slate_list_packs` → `ready: false` only if the graph still contains `PLACEHOLDER` / `ALIGN_ME`.
 
@@ -73,11 +80,9 @@ SLATE_LIVE_VIDEO=1 cargo test -p slate-comfy --test live_ltx_video -- --ignored 
 
 ## Not next / not shipped
 
-- Flux still → LTX **I2V** pack
-- VL judge on **video** (extract a frame; mp4 is not a first-class image)
-- Assemble / concat circled takes into a cut
 - Multi-scene factory
 - Music **audio** render
-- 4-shot live T2V factory (VRAM / time; use stills or one-clip `slate_run_pack`)
+- 4-shot live T2V/I2V factory in one sitting (VRAM / time — stills first, then one I2V hero)
+- IC-LoRA / lipsync / Video Buddy movie-builder graphs
 
 Operator docs: [engine.md](engine.md) · skill: [`skills/slate-film-factory/SKILL.md`](../skills/slate-film-factory/SKILL.md).

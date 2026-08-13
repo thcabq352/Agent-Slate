@@ -1,0 +1,28 @@
+{
+  "id": "default-flf2v",
+  "label": "Default local FLF2V (LTX 2.3 first+last frame)",
+  "modality": "video",
+  "inputs": {
+    "positive": { "node_id": "10", "field": "text" },
+    "negative": { "node_id": "11", "field": "text" },
+    "image": { "node_id": "8", "field": "image" },
+    "image_end": { "node_id": "18", "field": "image" },
+    "width": { "node_id": "20", "field": "width" },
+    "height": { "node_id": "20", "field": "height" },
+    "seed": { "node_id": "42", "field": "noise_seed", "mode": "randomize" },
+    "frames": {
+      "node_id": "20",
+      "field": "length",
+      "optional": true,
+      "mirrors": [{ "node_id": "21", "field": "frames_number" }]
+    }
+  },
+  "outputs": {
+    "media": { "node_id": "90", "type": "video" }
+  },
+  "limits": {
+    "aspect_ratios": ["16:9", "9:16"],
+    "max_duration_sec": 8
+  },
+  "compile_profile": "comfyui"
+}

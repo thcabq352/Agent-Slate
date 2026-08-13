@@ -113,6 +113,8 @@ It pairs naturally with the rest of [Wasserman's Filmmaker Suite](https://github
 |------|--------|
 | `default-still` | Flux.1-dev fp8 |
 | `default-video` | LTX 2.3 distilled T2V (768×432, 49 frames; one-clip smoke 92s / 356 KB on this host) |
+| `default-i2v` | LTX I2V from a Flux keyframe or provided still |
+| `default-flf2v` | LTX first + last frame |
 
 **Build & run**
 

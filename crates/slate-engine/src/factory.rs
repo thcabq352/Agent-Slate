@@ -25,7 +25,7 @@ use serde_json::{json, Value};
 use slate_brain::{
     brain_run, brain_status, BrainBackend as Bb, BrainRequest, BrainStatus, BrainTier,
 };
-use slate_comfy::{generate_to_file, ComfyClient};
+use slate_comfy::{generate_to_file, load_pack, ComfyClient};
 use slate_domain::{
     apply_ad_actions, compile_for_comfy, create_project, open_project, save_project, uid, AdAction,
     BrainBackend, Project, SpecPatch, Take,
@@ -825,6 +825,37 @@ pub async fn generate_shot_take(
         // New seed each attempt (randomize also happens in inject if omitted).
         values.insert("seed".into(), json!(rand::random::<u64>() % 1_000_000_000));
 
+        if let Ok((manifest, _)) = load_pack(&ctx.config.packs_dir, pack_id) {
+            if manifest.inputs.contains_key("image") {
+                let kf = ensure_keyframe(
+                    ctx,
+                    project,
+                    scene_idx,
+                    shot_idx,
+                    &dest_dir,
+                    &compiled,
+                    Some(ctx.cancel.as_ref()),
+                )
+                .await?;
+                values.insert("image".into(), json!(comfy_path_string(&kf)));
+                receipts.push(format!("• keyframe: {}", kf.display()));
+                if manifest.inputs.contains_key("image_end") {
+                    let end_dest = dest_dir.join("keyframe_end.png");
+                    let end = if let Some(scene) = project.scenes.get(scene_idx) {
+                        scene
+                            .shots
+                            .get(shot_idx + 1)
+                            .and_then(|n| n.takes.iter().rev().find_map(take_media_file))
+                            .and_then(|p| as_still_path(&p, &end_dest).ok())
+                    } else {
+                        None
+                    };
+                    let end = end.unwrap_or(kf);
+                    values.insert("image_end".into(), json!(comfy_path_string(&end)));
+                }
+            }
+        }
+
         let path = generate_to_file(
             &client,
             &ctx.config.packs_dir,
@@ -1484,17 +1515,101 @@ async fn live_shot_prompt(
     .await
 }
 
-/// LTX-safe canvas for the default video pack. Flux stills keep compile sizes.
+/// LTX-safe canvas for video packs. Flux stills keep compile sizes.
 pub(crate) fn canvas_for_pack(pack_id: &str, width: u32, height: u32) -> (u32, u32) {
-    if pack_id == "default-video" {
-        if width >= height {
-            (768, 432)
-        } else {
-            (432, 768)
+    match pack_id {
+        "default-video" | "default-i2v" | "default-flf2v" => {
+            if width >= height {
+                (768, 432)
+            } else {
+                (432, 768)
+            }
         }
-    } else {
-        (width, height)
+        _ => (width, height),
     }
+}
+
+fn comfy_path_string(p: &Path) -> String {
+    p.display().to_string().replace('\\', "/")
+}
+
+fn take_media_file(take: &Take) -> Option<PathBuf> {
+    if let Some(p) = take.media_path.as_ref().filter(|s| !s.is_empty()) {
+        let pb = PathBuf::from(p);
+        if pb.is_file() {
+            return Some(pb);
+        }
+    }
+    let head = take.notes.split('|').next().unwrap_or("").trim();
+    if head.is_empty() {
+        return None;
+    }
+    let pb = PathBuf::from(head.split_whitespace().next().unwrap_or(head));
+    pb.is_file().then_some(pb)
+}
+
+fn as_still_path(path: &Path, dest: &Path) -> Result<PathBuf, String> {
+    if crate::media::is_image_path(path) {
+        return Ok(path.to_path_buf());
+    }
+    if crate::media::is_video_path(path) {
+        return crate::media::extract_first_frame(path, dest);
+    }
+    Err(format!("not a still/video: {}", path.display()))
+}
+
+/// Find an existing still on this or the previous shot; otherwise generate Flux keyframe.
+async fn ensure_keyframe(
+    ctx: &EngineCtx,
+    project: &Project,
+    scene_idx: usize,
+    shot_idx: usize,
+    dest_dir: &Path,
+    compiled: &slate_domain::CompiledPrompt,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<PathBuf, String> {
+    let dest_frame = dest_dir.join("keyframe.png");
+    if let Some(scene) = project.scenes.get(scene_idx) {
+        if let Some(shot) = scene.shots.get(shot_idx) {
+            for take in shot.takes.iter().rev() {
+                if let Some(p) = take_media_file(take) {
+                    if let Ok(s) = as_still_path(&p, &dest_frame) {
+                        return Ok(s);
+                    }
+                }
+            }
+        }
+        if shot_idx > 0 {
+            if let Some(prev) = scene.shots.get(shot_idx - 1) {
+                for take in prev.takes.iter().rev() {
+                    if let Some(p) = take_media_file(take) {
+                        if let Ok(s) = as_still_path(&p, &dest_frame) {
+                            return Ok(s);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if ctx.config.dry_run {
+        return Ok(dest_dir.join("dry-run.txt"));
+    }
+    let client = ComfyClient::new(&ctx.config.comfy_base_url).map_err(|e| e.to_string())?;
+    let mut values = HashMap::new();
+    values.insert("positive".into(), json!(compiled.positive.clone()));
+    values.insert("negative".into(), json!(compiled.negative.clone()));
+    values.insert("width".into(), json!(compiled.width));
+    values.insert("height".into(), json!(compiled.height));
+    generate_to_file(
+        &client,
+        &ctx.config.packs_dir,
+        "default-still",
+        &values,
+        dest_dir,
+        cancel,
+    )
+    .await
+    .map_err(|e| format!("keyframe still: {e}"))
 }
 
 /// Re-generate a single shot (tool: `slate_generate_shot`).
@@ -1634,6 +1749,45 @@ pub fn list_takes(project_id: &str, shot_id: Option<&str>) -> Result<Value, Stri
         }
     }
     Ok(json!({ "projectId": project_id, "takes": rows }))
+}
+
+/// Concat circled (or all) take media into `{project}/cut/slate_cut.mp4`.
+pub fn assemble_project_cut(project_id: &str, circled_only: bool) -> Result<Value, String> {
+    let project = open_project(project_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Project not found".to_string())?;
+    let mut paths = Vec::new();
+    for scene in &project.scenes {
+        for shot in &scene.shots {
+            for take in &shot.takes {
+                if circled_only && !matches!(take.rating, slate_domain::TakeRating::Circled) {
+                    continue;
+                }
+                if let Some(p) = take_media_file(take) {
+                    paths.push(p);
+                }
+            }
+        }
+    }
+    if paths.is_empty() {
+        return Err(if circled_only {
+            "no circled takes with mediaPath".into()
+        } else {
+            "no take media to assemble".into()
+        });
+    }
+    let dest = slate_domain::projects_root()
+        .join(project_id)
+        .join("cut")
+        .join("slate_cut.mp4");
+    let out = crate::media::assemble_cut(&paths, &dest)?;
+    Ok(json!({
+        "ok": true,
+        "projectId": project_id,
+        "path": out.display().to_string(),
+        "clipCount": paths.len(),
+        "circledOnly": circled_only,
+    }))
 }
 
 #[cfg(test)]
@@ -1784,7 +1938,8 @@ mod tests {
     #[test]
     fn canvas_for_pack_clamps_ltx_video() {
         assert_eq!(canvas_for_pack("default-video", 1280, 720), (768, 432));
-        assert_eq!(canvas_for_pack("default-video", 720, 1280), (432, 768));
+        assert_eq!(canvas_for_pack("default-i2v", 1280, 720), (768, 432));
+        assert_eq!(canvas_for_pack("default-flf2v", 720, 1280), (432, 768));
         assert_eq!(canvas_for_pack("default-still", 1280, 720), (1280, 720));
     }
 

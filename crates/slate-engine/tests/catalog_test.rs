@@ -12,6 +12,7 @@ fn tool_catalog_includes_health() {
     assert!(names.iter().any(|n| n == "slate_list_packs"));
     assert!(names.iter().any(|n| n == "slate_run_pack"));
     assert!(names.iter().any(|n| n == "slate_compile_music"));
+    assert!(names.iter().any(|n| n == "slate_assemble"));
 }
 
 #[test]

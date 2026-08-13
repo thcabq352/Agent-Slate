@@ -165,6 +165,18 @@ pub async fn judge_media(
         ));
     }
 
+    let judge_path = match crate::media::media_for_judge(media_path) {
+        Ok(p) => p,
+        Err(e) => {
+            return Ok(skipped_accept(
+                &format!("quality gate skipped (frame extract: {e})"),
+                Some(media_path),
+                None,
+            ));
+        }
+    };
+    let media_path = judge_path.as_path();
+
     let gate = config.quality_gate();
     let status = judge_vision_status(
         Some(config.judge_endpoint.as_str()),

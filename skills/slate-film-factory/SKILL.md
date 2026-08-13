@@ -1,68 +1,57 @@
 ---
 name: slate-film-factory
-description: "One-prompt film factory via slate-engine MCP (plan shots, prompts, ComfyUI packs, vision health)."
-version: 0.2.0
+description: "One-prompt film factory via slate-engine MCP — brief to shots, Flux stills, LTX I2V/FLF2V/T2V, quality gate, assemble cut."
+version: 0.3.0
 metadata:
   hermes:
-    tags: [slate, film, comfyui, prompts, mcp, ollama, vision, ltx]
+    tags: [slate, film, comfyui, prompts, mcp, ollama, vision, ltx, i2v, flf2v]
     category: media
 ---
 
 # Slate Film Factory
 
-Shipped V1 snapshot: `docs/STATUS.md` in the Slate repo.
+Shipped snapshot: `docs/STATUS.md` in the Slate repo. Install: `INSTALL.md` in this folder.
 
 ## Identity
-- Engine: `cargo run -p slate-engine -- mcp` (or installed `slate-engine mcp`)
-- Comfy API default: http://127.0.0.1:8188
-- Vision judge (preferred): **qwen3.5:9b** via Ollama — weights not bundled (`ollama pull qwen3.5:9b`)
+- Engine: `slate-engine mcp` (stdio). Electron dock uses `slate-engine serve`.
+- Comfy: `http://127.0.0.1:8188`
+- VL judge: **qwen3.5:9b** via Ollama (not bundled)
 
 ## When to use
-- Plain-language scene → 4–8 shots + local Comfy takes in a Slate project
-- Multi-shot continuity / prompt bible
-- Agent/automation without clicking the Electron editor
+- Plain-language scene → 4–8 shots + local takes
+- Still → motion (`default-i2v`) or first/last frame (`default-flf2v`)
+- Assemble circled/all takes into one cut
 
 ## When NOT to use
 | Signal | Route |
 |--------|--------|
-| Complex LTX I2V / lipsync / VFX graphs, Video Buddy movie builder | video-buddy / master-agent |
-| HyperFrames / brand package | forge profile |
-| No Comfy and no desire to install | plan/prompts only (`SLATE_DRY_RUN=1`) |
-| A finished **cut** of several video takes | not shipped — stills factory or one-clip `slate_run_pack` |
-
-Simple **LTX T2V** is in-repo: `pack_id: "default-video"` (49 frames, 768 long-edge). Prefer `default-still` for a 4-shot factory.
+| Complex lipsync / IC-LoRA / movie-builder graphs | video-buddy / master-agent |
+| HyperFrames / brand package | forge |
+| No Comfy | `SLATE_DRY_RUN=1` (plan only) |
 
 ## Preflight
-1. Start ComfyUI API on 8188 if generation is required
-2. One GPU owner only — do not stack heavy Comfy jobs
-3. `slate_health` — engine ok; for generation, Comfy ok + at least one brain
-4. Vision: `vision.ready` true. Default **qwen3.5:9b** (`SLATE_JUDGE_MODEL`). If missing: `ollama pull qwen3.5:9b`
-5. Tool timeout for **blocking** `slate_film_factory`: **1800s** (900s minimum)
+1. Comfy on 8188 if generating
+2. One GPU owner
+3. `slate_health`
+4. `ollama pull qwen3.5:9b` if judging
+5. **Blocking** `slate_film_factory` timeout **1800s** (never `background: true` from Hermes)
 
-## Primary tool (Hermes)
+## Primary call
 
 ```
 slate_film_factory { "brief": "…", "pack_id": "default-still", "shot_count": 4 }
 ```
 
-**Blocking.** Do **not** pass `"background": true` from Hermes. That flag is for the Electron dock only (it polls `slate_status`).
+| pack_id | What happens |
+|---------|----------------|
+| `default-still` | Flux keyframes (best for a full 4-shot factory) |
+| `default-i2v` | Flux keyframe (or last still) → LTX I2V ~2s |
+| `default-flf2v` | Start still + next-shot still (or same) → LTX FLF2V |
+| `default-video` | LTX T2V from text only |
 
-Dry-run: `SLATE_DRY_RUN=1` on the engine process.
+I2V/FLF2V/T2V are **one short clip per shot**. Prefer stills for coverage, then `slate_generate_shot` + `default-i2v` on the hero.
 
 ## Other tools
-`slate_health`, `slate_status`, `slate_cancel` (also Comfy `/interrupt`), `slate_list_projects`, `slate_get_project`, `slate_list_takes` (`mediaPath` on takes), `slate_generate_shot`, `slate_judge_take`, `slate_first_ad`, `slate_note_write`, `slate_note_search`, `slate_list_packs`, `slate_run_pack`, `slate_compile_music`.
+`slate_health`, `slate_status`, `slate_cancel` (Comfy `/interrupt`), `slate_list_packs`, `slate_run_pack` (`image`, `image_end` for I2V/FLF), `slate_generate_shot`, `slate_judge_take` (mp4 → first frame), `slate_assemble` `{ projectId, circledOnly? }`, `slate_first_ad`, `slate_note_*`, `slate_compile_music` (text only), `slate_list_takes`.
 
-After generate, the engine runs a **quality gate** (Ollama VL). Failures auto-retry with seed + prompt pickups. Bad judge JSON / dry-run / `.txt` → skip, keep take. Check `quality` / `attempts`.
-
-**First AD:** `slate_first_ad` `{ "projectId", "message", "history"? }`.
-
-**Atomic Notes:** `.notes/notes.jsonl`.
-
-**Packs:** `default-still` (Flux). `default-video` (LTX 2.3 distilled T2V, factory-clamped 768×432 / 49 frames). `slate_compile_music` is text only.
-
-## Register (Hermes / MCP)
-```bash
-hermes mcp add slate -- /absolute/path/to/target/debug/slate-engine mcp
-```
-
-Set server `timeout: 1800`. Rebuild `slate-engine` after pulling engine changes. Restart the Hermes gateway so it reloads MCP.
+Dry-run: `SLATE_DRY_RUN=1`.

@@ -251,6 +251,8 @@ pub fn catalog() -> Vec<ToolInfo> {
                     "width": { "type": "integer" },
                     "height": { "type": "integer" },
                     "frames": { "type": "integer", "description": "Video frame count (LTX length; optional)" },
+                    "image": { "type": "string", "description": "Start frame path for I2V / FLF2V" },
+                    "image_end": { "type": "string", "description": "End frame path for FLF2V" },
                     "seed": { "type": "integer" },
                     "destDir": { "type": "string" }
                 },
@@ -266,6 +268,18 @@ pub fn catalog() -> Vec<ToolInfo> {
                     "projectId": { "type": "string" },
                     "cueId": { "type": "string" },
                     "target": { "type": "string", "description": "generic | suno" }
+                },
+                "required": ["projectId"]
+            }),
+        },
+        ToolInfo {
+            name: "slate_assemble".into(),
+            description: "Concat project takes into cut/slate_cut.mp4 (circledOnly optional).".into(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "projectId": { "type": "string" },
+                    "circledOnly": { "type": "boolean" }
                 },
                 "required": ["projectId"]
             }),
@@ -311,6 +325,7 @@ pub async fn invoke(tool: &str, args: Value, ctx: &EngineCtx) -> Result<Value, S
         "slate_run_pack" => slate_run_pack(ctx, args).await,
         "slate_compile_music" => slate_compile_music(args),
         "slate_list_takes" => slate_list_takes(args),
+        "slate_assemble" => slate_assemble(args),
         "slate_cancel" => slate_cancel(ctx).await,
         "slate_status" => slate_status(ctx),
         other => Err(format!("Unknown tool: {other}")),
@@ -697,6 +712,16 @@ async fn slate_run_pack(ctx: &EngineCtx, args: Value) -> Result<Value, String> {
     if let Some(n) = args.get("frames").and_then(|v| v.as_u64()) {
         values.insert("frames".into(), json!(n));
     }
+    if let Some(s) = args.get("image").and_then(|v| v.as_str()) {
+        values.insert("image".into(), json!(s.replace('\\', "/")));
+    }
+    if let Some(s) = args
+        .get("image_end")
+        .or_else(|| args.get("imageEnd"))
+        .and_then(|v| v.as_str())
+    {
+        values.insert("image_end".into(), json!(s.replace('\\', "/")));
+    }
     if let Some(n) = args.get("seed").and_then(|v| v.as_u64()) {
         values.insert("seed".into(), json!(n));
     }
@@ -746,6 +771,20 @@ fn slate_compile_music(args: Value) -> Result<Value, String> {
         .unwrap_or("generic");
     let compiled = crate::music::compile_project_music(project_id, cue_id, target)?;
     serde_json::to_value(compiled).map_err(|e| e.to_string())
+}
+
+fn slate_assemble(args: Value) -> Result<Value, String> {
+    let project_id = args
+        .get("projectId")
+        .or_else(|| args.get("project_id"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing required arg: projectId".to_string())?;
+    let circled = args
+        .get("circledOnly")
+        .or_else(|| args.get("circled_only"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    factory::assemble_project_cut(project_id, circled)
 }
 
 fn slate_list_takes(args: Value) -> Result<Value, String> {
