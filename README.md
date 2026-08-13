@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/images/logo.png" alt="Agent-Slate logo" width="360" />
+<img src="docs/images/logo.png" alt="Agent-Slate" width="720" />
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
@@ -13,11 +13,11 @@
 
 **The prompt studio for AI filmmaking, plus a local film factory.** Plan shots, direct coverage, spot your score, cast your voices, keep continuity across an entire film — compile production-ready prompts, or generate locally with ComfyUI.
 
-<video src="docs/images/first-run.mp4" poster="docs/images/1-editor.png" width="800" autoplay muted loop playsinline controls>
-  <a href="docs/images/first-run.mp4">First run of Agent-Slate</a>
-</video>
+<a href="https://github.com/thcabq352/Agent-Slate/blob/main/docs/images/first-run.mp4">
+  <img src="docs/images/first-run.webp" alt="First run — Agent-Slate on Windows (15s)" width="800" />
+</a>
 
-<p><em>First run — Agent-Slate on Windows (15s).</em></p>
+<p><em>First run — Agent-Slate on Windows (15s). <a href="docs/images/first-run.mp4">Open MP4</a></em></p>
 
 </div>
 
