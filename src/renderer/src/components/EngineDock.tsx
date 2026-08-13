@@ -261,6 +261,27 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
     }
   }
 
+  const assembleCut = async (): Promise<void> => {
+    if (!project) return
+    setBusy(true)
+    setErr(null)
+    try {
+      const out = (await window.slate.engineInvoke('slate_assemble', {
+        projectId: project.id,
+        circledOnly: false
+      })) as { ok?: boolean; path?: string; clipCount?: number; error?: string }
+      if (out.path) {
+        setMsg(`Cut assembled (${out.clipCount ?? '?'} clips): ${out.path}`)
+      } else {
+        setErr(out.error || 'Assemble failed')
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const compileMusic = async (): Promise<void> => {
     if (!project) return
     setBusy(true)
@@ -462,6 +483,13 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
             onClick={() => void runBrief()}
           >
             Run brief
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={busy || !project}
+            onClick={() => void assembleCut()}
+          >
+            Assemble cut
           </button>
           {(factoryWatch || status?.active) && (
             <div className="engine-plan">
