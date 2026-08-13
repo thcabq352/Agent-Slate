@@ -6,6 +6,7 @@ Current snapshot: [STATUS.md](STATUS.md).
 
 ## 2026-08-13
 
+- Docs pass: STATUS HEAD, engine video-judge + assemble dock, spec/plan banners, pack index, Help, README skill zip
 - **`default-i2v` / `default-flf2v`** — LTX 2.3 distilled image-to-video and first-last-frame packs
 - Factory auto-keyframes via Flux when those packs need an image
 - VL judge extracts the first frame from mp4
@@ -36,7 +37,7 @@ Current snapshot: [STATUS.md](STATUS.md).
   - `slate-brain` — local OpenAI-compatible servers, Claude Code CLI, Codex CLI
   - `slate-comfy` — ComfyUI API packs, workflow inject, dry-run generation
   - `slate-engine` — loopback HTTP, stdio MCP, `slate_film_factory`
-- **Packs** — `default-still` (Flux.1-dev fp8, live); `default-video` (see above)
+- **Packs** — `default-still` (Flux); `default-video` (LTX T2V); later `default-i2v` / `default-flf2v` (see 2026-08-13)
 - Quality gate (preferred `qwen3.5:9b`), First AD continuity book, Atomic Notes
 - Hermes skill — `skills/slate-film-factory/SKILL.md`
 - Cargo workspace — root `Cargo.toml` / `Cargo.lock`

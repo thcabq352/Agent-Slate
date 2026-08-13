@@ -367,6 +367,10 @@ const SECTIONS: Section[] = [
             (~2 s). Prefer stills, then I2V the hero.
           </li>
           <li>
+            <b>Assemble cut</b> — concatenates this project&apos;s takes to{' '}
+            <K>cut/slate_cut.mp4</K> (stills become 2-second holds).
+          </li>
+          <li>
             <b>Compile cues</b> — music text for Suno/generic. No audio file is rendered.
           </li>
           <li>

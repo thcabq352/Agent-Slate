@@ -23,7 +23,7 @@ No API keys. No model weights in the package. Local Comfy on `http://127.0.0.1:8
 | Quality gate (Ollama VL, preferred `qwen3.5:9b`) | Yes; soft-skip on bad JSON / dry-run / `.txt` |
 | First AD + scene continuity book | Yes |
 | Atomic notes (`.notes/notes.jsonl`) | Yes |
-| Agent dock (connect, AD, judge, retry, **Run brief**, **Compile cues**) | Yes |
+| Agent dock (connect, AD, judge, retry, **Run brief**, **Compile cues**, **Assemble cut**) | Yes |
 | `take.mediaPath` | Yes (notes path is fallback) |
 | `slate_cancel` | Flag **and** Comfy `POST /interrupt` + queue clear |
 | Coverage LLM parse | Tolerant (`coverage`/`title`/`purpose`, string JSON, shot maps) |
@@ -34,7 +34,7 @@ No API keys. No model weights in the package. Local Comfy on `http://127.0.0.1:8
 | `slate_assemble` | Concat takes → `{project}/cut/slate_cut.mp4` |
 | Shareable skill | `skills/slate-film-factory/` + `share/slate-film-factory.zip` |
 
-HEAD around this write-up: `9b708ba` on `main` (see [CHANGELOG-FORK.md](CHANGELOG-FORK.md)).
+HEAD around this write-up: `39120b5` on `main` (see [CHANGELOG-FORK.md](CHANGELOG-FORK.md)).
 
 ## How to run it
 
@@ -85,4 +85,4 @@ SLATE_LIVE_VIDEO=1 cargo test -p slate-comfy --test live_ltx_video -- --ignored 
 - 4-shot live T2V/I2V factory in one sitting (VRAM / time — stills first, then one I2V hero)
 - IC-LoRA / lipsync / Video Buddy movie-builder graphs
 
-Operator docs: [engine.md](engine.md) · skill: [`skills/slate-film-factory/SKILL.md`](../skills/slate-film-factory/SKILL.md).
+Operator docs: [engine.md](engine.md) · skill: [`skills/slate-film-factory/SKILL.md`](../skills/slate-film-factory/SKILL.md) · zip: [`share/slate-film-factory.zip`](../share/slate-film-factory.zip) · packs: [`workflows/packs/README.md`](../workflows/packs/README.md).

@@ -77,7 +77,7 @@ After each Comfy take:
 
 Takes store **`mediaPath`** (absolute file) plus a compact `notes` line with the verdict. `slate_list_takes` prefers `mediaPath`.
 
-Image brains use OpenAI multimodal `image_url` (base64). **Video files are not framed for the VL judge yet** — mp4 quality gate is skip/best-effort.
+Image brains use OpenAI multimodal `image_url` (base64). **Video takes:** ffmpeg grabs the first frame (`*_judge.png` beside the mp4) and that still is what the VL model scores. If ffmpeg is missing, the gate is skipped and the take is kept.
 
 ## Tools (MCP / HTTP)
 
@@ -109,9 +109,10 @@ With the engine built, click **◆ Agent**:
 - Connect / start `slate-engine serve` (`target/release` then `target/debug`)
 - Pills: Comfy / VL / busy step
 - **Run brief** — background factory; live `step` / `scenePlan`; opens the new project when idle
+- **Assemble cut** — `slate_assemble` → `{project}/cut/slate_cut.mp4` (stills become 2s holds)
 - **Compile cues** — music text only
 - First AD turn
-- Judge latest take (`mediaPath` or notes path), Approve, Retry shot
+- Judge latest take (`mediaPath` or notes path; mp4 → first frame), Approve, Retry shot
 - Cancel job — stop between shots **and** interrupt Comfy
 
 ### Continuity book
@@ -131,4 +132,6 @@ See `workflows/packs/`.
 
 `ready: false` if `workflow.api.json` still contains `PLACEHOLDER` / `ALIGN_ME`. Music is compile-only.
 
-Live LTX one-clip on this host: `slate_video_00001_.mp4`, 356 KB, ~92 s (2026-08-12).
+Live LTX **T2V** one-clip on this host: `slate_video_00001_.mp4`, 356 KB, ~92 s (2026-08-12). I2V / FLF2V graphs match live Comfy `object_info` (not yet one-clip smoked).
+
+Shareable Hermes skill: [`share/slate-film-factory.zip`](../share/slate-film-factory.zip).

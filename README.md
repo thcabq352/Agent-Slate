@@ -136,11 +136,13 @@ Binary: `slate-engine` (`target/debug` or `target/release`). Rebuild after engin
 hermes mcp add slate -- /absolute/path/to/target/debug/slate-engine mcp
 ```
 
-The Electron **Run brief** button uses `background: true` and polls `slate_status`. Cancel interrupts Comfy (`POST /interrupt`).
+The Electron **Run brief** button uses `background: true` and polls `slate_status`. **Assemble cut** writes `{project}/cut/slate_cut.mp4`. Cancel interrupts Comfy (`POST /interrupt`). Video takes are judged from the first ffmpeg frame.
 
 **Dry-run:** `SLATE_DRY_RUN=1 cargo run -p slate-engine -- mcp`
 
-Skill: [`skills/slate-film-factory/SKILL.md`](skills/slate-film-factory/SKILL.md). Operator manual: [`docs/engine.md`](docs/engine.md). Original design: [spec](docs/superpowers/specs/2026-08-11-slate-rust-agent-film-factory-design.md) · [plan](docs/superpowers/plans/2026-08-12-slate-rust-film-factory.md).
+**Share the skill:** [`share/slate-film-factory.zip`](share/slate-film-factory.zip) — unzip to `~/.hermes/skills/slate-film-factory/` and follow [`skills/slate-film-factory/INSTALL.md`](skills/slate-film-factory/INSTALL.md).
+
+Skill source: [`skills/slate-film-factory/SKILL.md`](skills/slate-film-factory/SKILL.md). Operator manual: [`docs/engine.md`](docs/engine.md). Original design: [spec](docs/superpowers/specs/2026-08-11-slate-rust-agent-film-factory-design.md) · [plan](docs/superpowers/plans/2026-08-12-slate-rust-film-factory.md).
 
 ## Development
 

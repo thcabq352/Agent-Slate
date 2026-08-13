@@ -5,7 +5,7 @@
 **Repo:** [thcabq352/slate](https://github.com/thcabq352/slate) (also pushed as Agent-Slate; Apache-2.0 — see NOTICE)  
 **Approach:** A — Rust workflow engine beside Electron; Hermes Gateway as primary non-pro front  
 
-**Shipped vs this draft:** `default-still` and `default-video` are live (not placeholders). Electron Agent dock exists (spec PR8). Hermes still uses **blocking** `slate_film_factory` (timeout 1800s). Dock uses `background: true`. Not shipped: I2V pack, video-frame VL judge, assemble/cut, multi-scene.
+**Shipped vs this draft (2026-08-13):** `default-still`, `default-video`, **`default-i2v`**, **`default-flf2v`** are live. Electron Agent dock exists (spec PR8) with Run brief / Compile cues / Assemble cut. Hermes uses **blocking** `slate_film_factory` (timeout 1800s). Dock uses `background: true`. Video VL judge extracts a first frame. `slate_assemble` writes a cut. Not shipped: multi-scene, music audio render, IC-LoRA/lipsync.
 
 ---
 
