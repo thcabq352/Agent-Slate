@@ -1,10 +1,10 @@
 # default-video pack
 
-Video-modality ComfyUI API pack for `slate_film_factory` / `slate_run_pack` / `slate_generate_shot`.
+Video-modality ComfyUI API pack for Agent-Slate `slate_film_factory` / `slate_run_pack` / `slate_generate_shot`.
 
 **Aligned to this machine’s Video Buddy Comfy** (`http://127.0.0.1:8188`) using **LTX 2.3 22B distilled fp8** (text-to-video + joint audio latent). Graph shape matches Video Buddy’s simplified single-pass T2V (`base_t2v_i2v.json`).
 
-Factory injects 768×432 (16:9) or 432×768 (9:16) so 1280×720 stills sizes do not OOM a 16 GB card. Default length is **49 frames @ 24 fps** (~2 s). Weights are **not** bundled.
+Factory injects 768×432 (16:9) or 432×768 (9:16) so 1280×720 stills sizes do not OOM a 16 GB card. Clip length is **shot `durationSec × fps`**, snapped to LTX **8n+1** (graph default 49 is only the fallback when frames are omitted). Weights are **not** bundled.
 
 ## Models required (as Comfy lists them)
 
@@ -24,7 +24,7 @@ Checkpoint + Gemma/projection + audio VAE + distilled LoRA → CLIPTextEncode ×
 | `negative` | `11` | `text` | |
 | `width` / `height` | `20` | width/height | factory clamps to 768 long edge |
 | `seed` | `42` | `noise_seed` | randomize if omitted |
-| `frames` (optional) | `20` | `length` | mirrors `21.frames_number` |
+| `frames` | `20` | `length` | factory injects `durationSec × fps`, LTX 8n+1, clamped to pack max |
 | media output | `90` | SaveVideo | history reports under `images` (animated) |
 
 ## Smoke

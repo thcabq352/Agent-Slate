@@ -760,6 +760,10 @@ pub fn apply_ad_actions(project: &mut Project, actions: &[AdAction]) -> ApplyRes
                     emotional_range: opt_str(emotional_range),
                     sample_line: opt_str(sample_line),
                     notes: String::new(),
+                    grok_voice_id: None,
+                    vo_text: None,
+                    vo_path: None,
+                    vo_language: None,
                 };
                 project.voices.get_or_insert_with(Vec::new).push(voice);
                 receipts.push(format!("✓ Cast voice \"{display}\""));

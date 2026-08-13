@@ -169,6 +169,31 @@ Return JSON: {"prompt":"<the voice-design description in this target's dialect>"
   })
 }
 
+/** Direct a speakable line for Grok TTS (inline [pause]/[laugh] and wrapping <whisper>). */
+export async function directGrokVo(p: Project, v: VoiceSheet, line: string): Promise<BrainResult> {
+  return runBrain(p, {
+    task: 'voice-direct-grok',
+    tier: 'standard',
+    prompt: `${projectContext(p)}
+
+VOICE: ${v.name}
+Age/gender: ${v.ageGender} · Accent: ${v.accent}
+Timbre: ${v.timbre} · Pitch: ${v.pitch} · Texture: ${v.texture}
+Pacing: ${v.pacing} · Energy: ${v.energy}
+Emotional range: ${v.emotionalRange}
+${v.notes ? `Notes: ${v.notes}` : ''}
+
+LINE TO SPEAK:
+${line.trim()}
+
+Rewrite this as a Grok TTS performance. Keep the words the character would actually say. You may add:
+- inline tags: [pause] [laugh] [sigh] [breath]
+- wrapping tags: <whisper>…</whisper>
+Use tags only when they serve the read. No quotes, no stage directions outside tags, no commentary.
+Return ONLY the speakable text.`
+  })
+}
+
 // ---------- Factories ----------
 
 export function blankCue(id: string): MusicCue {
@@ -205,6 +230,9 @@ export function blankVoice(id: string): VoiceSheet {
     texture: '',
     emotionalRange: '',
     sampleLine: '',
-    notes: ''
+    notes: '',
+    grokVoiceId: 'eve',
+    voText: '',
+    voLanguage: 'en'
   }
 }

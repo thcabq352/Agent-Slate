@@ -1,12 +1,12 @@
 # Maintainers
 
-## This repository (fork)
+## This repository (Agent-Slate)
 
 | Role | Party | Contact |
 |------|--------|---------|
-| **Maintainer** | **thcabq352** | [github.com/thcabq352](https://github.com/thcabq352) · [github.com/thcabq352/slate](https://github.com/thcabq352/slate) |
+| **Maintainer** | **thcabq352** | [github.com/thcabq352](https://github.com/thcabq352) · [github.com/thcabq352/Agent-Slate](https://github.com/thcabq352/Agent-Slate) |
 
-The maintainer is responsible for this fork’s issues, PRs, releases, and new components (the Rust `slate-engine` film factory, Comfy packs, Agent dock). Current shipped state: [docs/STATUS.md](docs/STATUS.md).
+The maintainer is responsible for this fork’s issues, PRs, releases, and new components (the Rust `slate-engine` film factory, Comfy packs, Agent dock, Grok/Cursor brains, Windows / macOS / Linux install). Current shipped state: [docs/STATUS.md](docs/STATUS.md) · [docs/GUIDE.md](docs/GUIDE.md).
 
 ## Upstream project
 

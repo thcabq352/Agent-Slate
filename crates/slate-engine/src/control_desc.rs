@@ -1,11 +1,21 @@
-//! Control descriptor — loopback port + bearer token on disk for MCP / clients.
-//! Mirrors Electron `src/main/control.ts`.
+//! Control descriptor — loopback port + bearer token on disk for HTTP clients.
+//!
+//! Electron writes a *different* file (`electron-control.json`, app `slate-electron`)
+//! from `src/main/control.ts`. Do not share a path with the studio MCP bridge.
 
 use std::fs;
 use std::io;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+
+/// `app` field written into the engine descriptor. Clients must match this
+/// so they never invoke the Electron control server by mistake.
+pub const APP_NAME: &str = "slate-engine";
+
+/// Filename under the slate config dir (not `control.json` — that collided
+/// with Electron).
+pub const DESCRIPTOR_FILE: &str = "engine-control.json";
 
 /// On-disk control descriptor written when the HTTP server starts.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,9 +27,9 @@ pub struct ControlDescriptor {
     pub pid: u32,
 }
 
-/// Path to `control.json`:
-/// - Windows: `%APPDATA%\slate\control.json`
-/// - Unix: `~/.config/slate/control.json`
+/// Path to `engine-control.json`:
+/// - Windows: `%APPDATA%\slate\engine-control.json`
+/// - Unix: `~/.config/slate/engine-control.json`
 pub fn descriptor_path() -> PathBuf {
     let base = if cfg!(windows) {
         dirs::data_dir()
@@ -34,7 +44,7 @@ pub fn descriptor_path() -> PathBuf {
             .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
             .unwrap_or_else(|| PathBuf::from("."))
     };
-    base.join("slate").join("control.json")
+    base.join("slate").join(DESCRIPTOR_FILE)
 }
 
 /// Write `{ v, app, port, token, pid }` to [`descriptor_path`], creating parent dirs.
@@ -46,7 +56,7 @@ pub fn write_control_descriptor(port: u16, token: &str) -> io::Result<PathBuf> {
     }
     let desc = ControlDescriptor {
         v: 1,
-        app: "slate".to_string(),
+        app: APP_NAME.to_string(),
         port,
         token: token.to_string(),
         pid: std::process::id(),

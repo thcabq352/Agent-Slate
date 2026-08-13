@@ -1,0 +1,270 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "Agent-Slate",
+  "version": "0.3.2",
+  "readmeFirst": "docs/GUIDE.md",
+  "purpose": "Rules for coding agents (Grok Build, Cursor, Codex, Hermes) editing or operating this repo. Humans: README.md and docs/GUIDE.md.",
+  "product": {
+    "displayName": "Agent-Slate",
+    "license": "Apache-2.0",
+    "upstream": {
+      "name": "Slate",
+      "author": "Sam Wasserman",
+      "url": "https://github.com/wassermanproductions/slate",
+      "notice": "NOTICE"
+    },
+    "maintainer": {
+      "id": "thcabq352",
+      "url": "https://github.com/thcabq352/Agent-Slate"
+    },
+    "layers": [
+      {
+        "id": "studio",
+        "summary": "Electron prompt studio — bible, coverage, First AD (planner), Sound, compile for external generators. Works without Comfy, Rust, or a brain."
+      },
+      {
+        "id": "factory",
+        "summary": "Optional local film factory — slate-engine + ComfyUI packs. Brief becomes shots and takes on disk.",
+        "requires": ["slate-engine", "ComfyUI at http://127.0.0.1:8188"]
+      }
+    ]
+  },
+  "help": {
+    "inApp": "? button or Ctrl+/ (macOS ⌘/)",
+    "guide": "docs/GUIDE.md",
+    "status": "docs/STATUS.md",
+    "engine": "docs/engine.md"
+  },
+  "whenUserSays": [
+    {
+      "intent": "install / set up",
+      "do": "Windows: install.ps1 -Grok. macOS/Linux: ./install.sh --grok. Then npm run dev and grok login. See docs/GUIDE.md#install"
+    },
+    {
+      "intent": "how do I use this / what do I click",
+      "do": "Point at docs/GUIDE.md studio map and in-app Help"
+    },
+    {
+      "intent": "make / plan shots (no Comfy)",
+      "do": "Studio + ✦ First AD / Coverage. Do not call slate_film_factory"
+    },
+    {
+      "intent": "generate locally / run the factory",
+      "do": "slate-engine + Comfy. Dock: background true. Hermes: blocking slate_film_factory, timeout 1800s"
+    },
+    {
+      "intent": "Grok brain or VO",
+      "do": "grok login (not Cursor OAuth). Never spawn a binary named agent"
+    },
+    {
+      "intent": "First AD",
+      "do": "Titlebar ✦ First AD is the studio planner. Dock Factory AD is slate_first_ad. Separate chats"
+    },
+    {
+      "intent": "commit / PR",
+      "do": "Only if the user asked"
+    }
+  ],
+  "compatIds": {
+    "note": "Do not rename these even though the product name is Agent-Slate",
+    "engineCrate": "slate-engine",
+    "engineBinary": "slate-engine",
+    "mcpToolPrefix": "slate_",
+    "electronMcpApp": "slate-electron",
+    "engineHttpApp": "slate-engine",
+    "dataDir": "~/Documents/Slate/",
+    "dataDirEnv": "SLATE_DATA_DIR",
+    "envPrefix": "SLATE_",
+    "preloadApi": "window.slate"
+  },
+  "platforms": {
+    "supported": ["win", "mac", "linux"],
+    "setupScript": "scripts/setup.mjs",
+    "setupFlags": ["--ffmpeg", "--grok", "--cursor", "--engine", "--skip-npm"],
+    "powershell": "Do not use bash &&. Use ; or separate commands. Use install.ps1 for ExecutionPolicy.",
+    "neverSpawn": "agent",
+    "neverSpawnReason": "Grok Build and Cursor both ship a colliding agent binary. Always grok / grok.exe or cursor-agent.",
+    "linuxElectronSandbox": "ELECTRON_DISABLE_SANDBOX=1 for per-user unpacked installs; chrome-sandbox setuid is not required",
+    "win": {
+      "setup": "powershell -ExecutionPolicy Bypass -File .\\install.ps1 -Grok",
+      "node": "winget install OpenJS.NodeJS.LTS",
+      "ffmpeg": "winget install Gyan.FFmpeg",
+      "grokCli": "irm https://x.ai/cli/install.ps1 | iex",
+      "cursorCli": "irm 'https://cursor.com/install?win32=true' | iex",
+      "engineBinary": "target\\debug\\slate-engine.exe",
+      "controlJson": "%APPDATA%\\slate\\",
+      "projects": "%USERPROFILE%\\Documents\\Slate\\",
+      "grokAuth": "%USERPROFILE%\\.grok\\auth.json",
+      "grokBin": "%USERPROFILE%\\.grok\\bin\\grok.exe",
+      "packageOut": "dist/Agent-Slate/",
+      "helpShortcut": "Ctrl+/"
+    },
+    "mac": {
+      "setup": "./install.sh --grok",
+      "node": "brew install node",
+      "ffmpeg": "brew install ffmpeg",
+      "grokCli": "curl -fsSL https://x.ai/cli/install.sh | bash",
+      "cursorCli": "curl https://cursor.com/install -fsS | bash",
+      "engineBinary": "target/debug/slate-engine",
+      "controlJson": "~/.config/slate/",
+      "projects": "~/Documents/Slate/",
+      "grokAuth": "~/.grok/auth.json",
+      "grokBin": "~/.grok/bin/grok",
+      "packageOut": "dist/Agent-Slate.app",
+      "helpShortcut": "⌘/"
+    },
+    "linux": {
+      "setup": "./install.sh --grok",
+      "node": "https://nodejs.org or apt/dnf",
+      "ffmpeg": "sudo apt install ffmpeg",
+      "grokCli": "curl -fsSL https://x.ai/cli/install.sh | bash",
+      "cursorCli": "curl https://cursor.com/install -fsS | bash",
+      "engineBinary": "target/debug/slate-engine",
+      "controlJson": "~/.config/slate/",
+      "projects": "~/Documents/Slate/",
+      "grokAuth": "~/.grok/auth.json",
+      "grokBin": "~/.grok/bin/grok",
+      "packageOut": "dist/Agent-Slate/",
+      "helpShortcut": "Ctrl+/"
+    }
+  },
+  "repoMap": {
+    "src/main/": "Electron main (brains, ffmpeg, TTS, engine bridge, IPC)",
+    "src/renderer/": "React studio UI",
+    "src/shared/": "Types + Grok TTS/Build helpers + install hints",
+    "src/preload/": "window.slate",
+    "mcp/slate-mcp.mjs": "Studio MCP while Electron is running",
+    "crates/slate-domain": "Project JSON / actions",
+    "crates/slate-brain": "Cursor / Grok Build / Codex / local adapters",
+    "crates/slate-comfy": "Comfy client + packs",
+    "crates/slate-engine": "Factory MCP + HTTP serve",
+    "workflows/packs/": "Comfy API graphs (no weights)",
+    "skills/slate-film-factory/": "Hermes Skills Hub skill (SKILL.md + references/)",
+    "scripts/setup.mjs": "Cross-platform from-source setup",
+    "scripts/package-desktop.mjs": "Unpacked desktop app (all OS)"
+  },
+  "brains": {
+    "picker": ["cursor", "grok-4.5", "grok-4.6", "codex", "local"],
+    "claudeAlias": "Old claude JSON migrates to cursor. Never pass Claude model ids (watermarked generations).",
+    "backends": [
+      {
+        "id": "cursor",
+        "auth": "cursor-agent login",
+        "runner": "Cursor CLI, Composer slugs"
+      },
+      {
+        "id": "grok-4.5",
+        "auth": "grok login first (Grok Build OAuth, ~/.grok/auth.json)",
+        "runner": "grok -p --output-format json in a temp cwd; if Grok CLI/session missing, fall back to cursor-agent with cursor-grok-4.5-* slugs"
+      },
+      {
+        "id": "grok-4.6",
+        "auth": "grok login first (Grok Build OAuth, ~/.grok/auth.json)",
+        "runner": "grok -p --output-format json in a temp cwd; if Grok CLI/session missing, fall back to cursor-agent with cursor-grok-4.6-* slugs"
+      },
+      {
+        "id": "codex",
+        "auth": "ChatGPT desktop sign-in or codex login",
+        "runner": "Bundled ChatGPT codex when present"
+      },
+      {
+        "id": "local",
+        "auth": "none",
+        "runner": "OpenAI-compat localhost (Ollama :11434, LM Studio :1234, …)"
+      }
+    ],
+    "grokVo": "Sound → Voices uses the same grok login session (not Cursor OAuth). Optional XAI_API_KEY / SLATE_XAI_API_KEY is a silent fallback only.",
+    "scratchWorkspaces": ["slate-grok-brain", "slate-cursor-brain"],
+    "scratchNote": "OS temp dir. Never point Grok/Cursor print-mode at this git repo."
+  },
+  "assistantDirectors": [
+    {
+      "ui": "✦ First AD",
+      "where": "titlebar",
+      "role": "studio planner",
+      "job": "Scenes, shots, prompts, bible. No Comfy."
+    },
+    {
+      "ui": "Factory AD",
+      "where": "◆ Agent dock",
+      "role": "engine operator",
+      "tool": "slate_first_ad",
+      "job": "Continuity + scene plan for generates. Separate chat from ✦ First AD."
+    }
+  ],
+  "factory": {
+    "hermes": {
+      "command": "cargo run -p slate-engine -- mcp",
+      "filmFactory": "blocking slate_film_factory — never background true",
+      "timeoutSec": 1800,
+      "timeoutMinSec": 900
+    },
+    "electronDock": {
+      "command": "slate-engine serve",
+      "descriptor": "engine-control.json",
+      "runBrief": "background true then poll slate_status"
+    },
+    "descriptors": {
+      "electron": { "file": "electron-control.json", "app": "slate-electron" },
+      "engine": { "file": "engine-control.json", "app": "slate-engine" },
+      "legacyUnused": "control.json"
+    },
+    "comfy": "http://127.0.0.1:8188",
+    "oneGpuOwner": true,
+    "judge": { "preferred": "qwen3.5:9b", "pull": "ollama pull qwen3.5:9b", "bundled": false },
+    "packs": ["default-still", "default-video", "default-i2v", "default-flf2v"],
+    "packsDir": "workflows/packs/",
+    "dryRunEnv": "SLATE_DRY_RUN=1",
+    "hermesMcp": {
+      "windows": {
+        "command": "C:\\ABS\\PATH\\to\\target\\debug\\slate-engine.exe",
+        "args": ["mcp"],
+        "timeout": 1800,
+        "connect_timeout": 120
+      },
+      "posix": {
+        "command": "/ABS/PATH/to/target/debug/slate-engine",
+        "args": ["mcp"],
+        "timeout": 1800,
+        "connect_timeout": 120
+      }
+    },
+    "studioMcp": {
+      "file": "mcp/slate-mcp.mjs",
+      "requiresElectron": true,
+      "cursorConfigUnix": "~/.cursor/mcp.json",
+      "cursorConfigWindows": "%USERPROFILE%\\.cursor\\mcp.json"
+    }
+  },
+  "commands": {
+    "devBash": "npm ci && npm run dev",
+    "devPowerShell": "npm ci; npm run dev",
+    "test": "npm test",
+    "typecheck": "npm run typecheck",
+    "cargoTest": "cargo test --workspace",
+    "engineBuild": "cargo build -p slate-engine",
+    "build": "npm run build",
+    "packageDesktop": "npm run package:desktop",
+    "shareSkill": "npm run share:skill"
+  },
+  "rules": [
+    "Do not commit unless the user asked. Do not git push unless asked. Do not rewrite git config.",
+    "Do not log tokens. Never dump ~/.grok/auth.json or Cursor credentials. Do not send Cursor tokens to api.x.ai.",
+    "Do not refresh Grok tokens in-process in a way that rotates refresh_token without writing it back. Expired session → grok login.",
+    "PowerShell: no &&, no git … -i.",
+    "Prefer editing existing files. Do not add README/docs the user did not ask for (STATUS/CHANGELOG for shipped behavior excepted).",
+    "Tests: vitest for TS helpers; cargo test -p slate-brain / slate-domain / slate-engine for Rust. Do not hit live xAI or Comfy in unit tests."
+  ],
+  "docs": [
+    { "path": "README.md", "audience": "Humans installing the studio; first-run clip docs/images/first-run.mp4" },
+    { "path": "docs/GUIDE.md", "audience": "Functions and flows (humans + agents)" },
+    { "path": "AGENTS.json", "audience": "This file — agents in the repo" },
+    { "path": "docs/STATUS.md", "audience": "What is shipped" },
+    { "path": "docs/engine.md", "audience": "Factory operator" },
+    { "path": "docs/CHANGELOG-FORK.md", "audience": "Fork delta vs upstream" },
+    { "path": "skills/slate-film-factory/SKILL.md", "audience": "Hermes Skills Hub — film factory" },
+    { "path": "docs/ATTRIBUTION.md", "audience": "Apache-2.0 credit" },
+    { "path": "workflows/packs/README.md", "audience": "Comfy packs" },
+    { "path": "docs/prompting-research.md", "audience": "Studio Deliver model-profile notes" }
+  ]
+}

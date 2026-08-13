@@ -4,6 +4,7 @@
 
 import { spawn } from 'child_process'
 import type { AudioFingerprint } from '../shared/types'
+import { ffmpegBin, ffmpegInstallHint } from './ffmpeg'
 
 export type { AudioFingerprint }
 
@@ -14,7 +15,7 @@ const MAX_SECONDS = 90
 function decodePcm(path: string): Promise<{ pcm: Int16Array; fullDurationSec: number }> {
   return new Promise((resolve, reject) => {
     // Duration probe piggybacks on stderr; decode capped sample from the start.
-    const child = spawn('ffmpeg', [
+    const child = spawn(ffmpegBin(), [
       '-i', path,
       '-map', 'a:0',
       '-ac', '1',
@@ -22,12 +23,14 @@ function decodePcm(path: string): Promise<{ pcm: Int16Array; fullDurationSec: nu
       '-t', String(MAX_SECONDS),
       '-f', 's16le',
       'pipe:1'
-    ])
+    ], { windowsHide: true })
     const chunks: Buffer[] = []
     let err = ''
     child.stdout.on('data', (d: Buffer) => chunks.push(d))
     child.stderr.on('data', (d) => (err += d))
-    child.on('error', (e) => reject(new Error(`ffmpeg failed: ${e.message}`)))
+    child.on('error', (e) =>
+      reject(new Error(`ffmpeg failed: ${e.message}. ${ffmpegInstallHint()}`))
+    )
     child.on('close', (code) => {
       if (code !== 0 && chunks.length === 0) {
         reject(new Error(err.includes('does not contain any stream') || err.includes('Stream map')

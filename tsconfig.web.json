@@ -13,5 +13,5 @@
     "baseUrl": ".",
     "paths": { "@/*": ["src/renderer/src/*"] }
   },
-  "include": ["src/renderer/**/*", "data/**/*.json"]
+  "include": ["src/renderer/**/*", "src/shared/**/*", "data/**/*.json"]
 }

@@ -1,47 +1,170 @@
-// Brain — runs the user's own local agent CLIs (Claude Code, Codex) in print mode,
+// Brain — runs the user's own local agent CLIs (Grok Build, Cursor CLI, Codex) in print mode,
 // or any OpenAI-compatible local model server (Ollama, LM Studio, vLLM, llama.cpp…).
-// No API keys are stored or used; billing rides on the user's existing subscriptions,
-// and the local backend never leaves the machine.
+// Grok 4.5 / 4.6 prefer `grok login` (Grok Build OAuth) over `cursor-agent login`.
+// Composer stays on Cursor. No API keys are stored or used.
 
 import { execFile, spawn, ChildProcess } from 'child_process'
-import { existsSync, readFileSync, rmSync } from 'fs'
-import { join, extname } from 'path'
+import { existsSync, readFileSync, readdirSync, rmSync, mkdirSync, statSync, writeFileSync } from 'fs'
+import { join, extname, delimiter } from 'path'
 import { homedir, tmpdir } from 'os'
 import type { BrainBackend, BrainRequest, BrainResult, BrainStatus, BrainTier, LocalModelInfo } from '../shared/types'
+import { isCursorBrain, isGrokBrain, normalizeBrain } from '../shared/types'
+import {
+  grokBuildCliModel,
+  grokBuildHeadlessPrompt,
+  grokBuildPromptFileName,
+  parseGrokBuildOutput
+} from '../shared/grokBuild'
+import { grokBuildOauthPresent } from './grokAuth'
 
 // Electron apps launched from Finder/Dock inherit a minimal PATH that misses
 // Homebrew and user bins — resolve the CLIs explicitly and augment PATH.
 const CLI_DIRS = [
+  join(homedir(), '.grok', 'bin'),
   '/opt/homebrew/bin',
   '/usr/local/bin',
+  '/snap/bin',
   join(homedir(), '.local', 'bin'),
   join(homedir(), 'bin'),
   join(homedir(), '.npm-global', 'bin'),
-  '/usr/bin'
+  '/usr/bin',
+  ...(process.env.APPDATA ? [join(process.env.APPDATA, 'npm')] : []),
+  ...(process.env.LOCALAPPDATA
+    ? [
+        join(process.env.LOCALAPPDATA, 'cursor-agent'),
+        join(process.env.LOCALAPPDATA, 'Programs', 'cursor', 'resources', 'app', 'bin'),
+        join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links')
+      ]
+    : []),
+  join(homedir(), 'scoop', 'shims'),
+  'C:\\ffmpeg\\bin',
+  join(process.env.ProgramFiles || 'C:\\Program Files', 'ffmpeg', 'bin'),
+  'C:\\ProgramData\\chocolatey\\bin',
+  join(process.env.ProgramFiles || 'C:\\Program Files', 'Git', 'usr', 'bin')
 ]
 
-// The ChatGPT desktop app bundles a signed, version-matched codex that shares
-// the user's ChatGPT sign-in — prefer it over any npm-installed copy.
-const CODEX_BUNDLED = '/Applications/ChatGPT.app/Contents/Resources/codex'
+function codexBundledCandidates(): string[] {
+  const local = process.env.LOCALAPPDATA
+  const pf = process.env.ProgramFiles || 'C:\\Program Files'
+  return [
+    '/Applications/ChatGPT.app/Contents/Resources/codex',
+    ...(local
+      ? [
+          join(local, 'Programs', 'ChatGPT', 'resources', 'codex.exe'),
+          join(local, 'Programs', 'ChatGPT', 'resources', 'codex'),
+          join(local, 'Programs', 'ChatGPT', 'resources', 'app', 'codex.exe'),
+          join(local, 'Programs', 'chatgpt', 'resources', 'codex.exe')
+        ]
+      : []),
+    join(pf, 'ChatGPT', 'resources', 'codex.exe'),
+    join(pf, 'ChatGPT', 'resources', 'codex')
+  ]
+}
+
+/** Windows: only .exe/.cmd/.bat files. Extensionless Git-Bash shims spawn EINVAL. */
+function isSpawnableCli(p: string): boolean {
+  try {
+    if (!statSync(p).isFile()) return false
+  } catch {
+    return false
+  }
+  if (process.platform !== 'win32') return true
+  return /\.(exe|cmd|bat)$/i.test(p)
+}
+
+function resolveCodexBundled(): string | null {
+  return codexBundledCandidates().find((p) => isSpawnableCli(p)) ?? null
+}
 
 function resolveCli(name: string): string {
-  if (name === 'codex' && existsSync(CODEX_BUNDLED)) return CODEX_BUNDLED
-  for (const dir of CLI_DIRS) {
-    const p = join(dir, name)
-    if (existsSync(p)) return p
+  if (name === 'codex') {
+    const bundled = resolveCodexBundled()
+    if (bundled) return bundled
   }
-  return name // hope PATH has it
+  // Prefer .exe, then .cmd — never the extensionless bash shim on Windows.
+  const names = process.platform === 'win32' ? [`${name}.exe`, `${name}.cmd`, `${name}.bat`] : [name]
+  const dirs = [...CLI_DIRS, ...(process.env.PATH ?? '').split(delimiter)]
+  for (const dir of dirs) {
+    if (!dir) continue
+    for (const n of names) {
+      const p = join(dir, n)
+      if (isSpawnableCli(p)) return p
+    }
+  }
+  return process.platform === 'win32' ? `${name}.cmd` : name
+}
+
+/** Launch Cursor via bundled node.exe + index.js so we never spawn a .cmd/.sh shim. */
+function resolveCursorLaunch(): { file: string; prefixArgs: string[] } {
+  const local = process.env.LOCALAPPDATA
+  if (local) {
+    const versionsRoot = join(local, 'cursor-agent', 'versions')
+    try {
+      const versions = readdirSync(versionsRoot)
+        .filter((n) => /^\d{4}\.\d{1,2}\.\d{1,2}/.test(n))
+        .sort()
+        .reverse()
+      for (const ver of versions) {
+        const dir = join(versionsRoot, ver)
+        const node = join(dir, 'node.exe')
+        const index = join(dir, 'index.js')
+        if (isSpawnableCli(node) && existsSync(index)) {
+          return { file: node, prefixArgs: [index] }
+        }
+      }
+    } catch {
+      /* no versions dir */
+    }
+  }
+  return { file: resolveCli('cursor-agent'), prefixArgs: [] }
+}
+
+/** Official Grok Build binary. Never spawn the colliding `agent` CLI. */
+function resolveGrokBin(): string | null {
+  const names = process.platform === 'win32' ? ['grok.exe'] : ['grok']
+  const dirs = [join(homedir(), '.grok', 'bin'), ...CLI_DIRS, ...(process.env.PATH ?? '').split(delimiter)]
+  const seen = new Set<string>()
+  for (const dir of dirs) {
+    if (!dir || seen.has(dir)) continue
+    seen.add(dir)
+    for (const n of names) {
+      const p = join(dir, n)
+      if (isSpawnableCli(p)) return p
+    }
+  }
+  return null
+}
+
+function grokBuildReady(): boolean {
+  return resolveGrokBin() !== null && grokBuildOauthPresent()
+}
+
+function isWinBatch(file: string): boolean {
+  return process.platform === 'win32' && /\.(cmd|bat)$/i.test(file)
 }
 
 function brainEnv(): NodeJS.ProcessEnv {
-  const extra = CLI_DIRS.join(':')
-  return { ...process.env, PATH: `${process.env.PATH ?? ''}:${extra}` }
+  const extra = CLI_DIRS.filter(Boolean).join(delimiter)
+  const path = process.env.PATH ?? ''
+  return { ...process.env, PATH: path ? `${extra}${delimiter}${path}` : extra }
 }
 
-const CLAUDE_TIER_MODEL: Record<BrainTier, string | null> = {
-  fast: 'haiku',
-  standard: 'sonnet',
-  top: null // user's configured default model — their best available
+function cursorCliModel(backend: BrainBackend, tier: BrainTier): string {
+  if (backend === 'grok-4.5') {
+    return tier === 'fast' ? 'cursor-grok-4.5-high-fast' : 'cursor-grok-4.5-high'
+  }
+  if (backend === 'grok-4.6') {
+    if (tier === 'fast') return 'cursor-grok-4.6-xhigh-fast'
+    if (tier === 'top') return 'cursor-grok-4.6-xhigh'
+    return 'cursor-grok-4.6-high'
+  }
+  return CURSOR_COMPOSER_TIER[tier]
+}
+
+const CURSOR_COMPOSER_TIER: Record<BrainTier, string> = {
+  fast: 'composer-2.5-fast',
+  standard: 'composer-2.5',
+  top: 'composer-2.5'
 }
 
 const running = new Map<string, ChildProcess>()
@@ -51,10 +174,14 @@ const runningLocal = new Map<string, AbortController>()
 // One adapter covers every mainstream local runtime — they all expose the same
 // /v1/chat/completions protocol on a localhost port.
 const LOCAL_CANDIDATES = [
-  'http://localhost:11434/v1', // Ollama
-  'http://localhost:1234/v1', // LM Studio
-  'http://localhost:8000/v1', // vLLM
-  'http://localhost:8080/v1' // llama.cpp server / KoboldCpp
+  'http://127.0.0.1:11434/v1', // Ollama IPv4
+  'http://localhost:11434/v1',
+  'http://127.0.0.1:1234/v1',
+  'http://localhost:1234/v1',
+  'http://127.0.0.1:8000/v1',
+  'http://localhost:8000/v1',
+  'http://127.0.0.1:8080/v1',
+  'http://localhost:8080/v1'
 ]
 
 function normalizeEndpoint(url: string): string {
@@ -67,7 +194,7 @@ function normalizeEndpoint(url: string): string {
 async function probeLocal(endpoint: string): Promise<LocalModelInfo[] | null> {
   try {
     const ctrl = new AbortController()
-    const t = setTimeout(() => ctrl.abort(), 1500)
+    const t = setTimeout(() => ctrl.abort(), 4000)
     const res = await fetch(`${endpoint}/models`, {
       headers: { Authorization: 'Bearer slate' },
       signal: ctrl.signal
@@ -214,21 +341,43 @@ async function runLocal(req: BrainRequest, started: number): Promise<BrainResult
 
 function which(cmd: string, args: string[]): Promise<string | null> {
   return new Promise((resolve) => {
-    execFile(resolveCli(cmd), args, { timeout: 15000, env: brainEnv() }, (err, stdout) => {
-      if (err) resolve(null)
-      else resolve(stdout.trim().split('\n')[0] || 'available')
-    })
+    const launch =
+      cmd === 'cursor-agent'
+        ? resolveCursorLaunch()
+        : cmd === 'grok'
+          ? { file: resolveGrokBin() ?? '', prefixArgs: [] as string[] }
+          : { file: resolveCli(cmd), prefixArgs: [] as string[] }
+    if (!launch.file) {
+      resolve(null)
+      return
+    }
+    try {
+      execFile(
+        launch.file,
+        [...launch.prefixArgs, ...args],
+        { timeout: 15000, env: brainEnv(), windowsHide: true, shell: isWinBatch(launch.file) },
+        (err, stdout) => {
+          if (err) resolve(null)
+          else resolve(stdout.trim().split('\n')[0] || 'available')
+        }
+      )
+    } catch {
+      resolve(null)
+    }
   })
 }
 
 export async function brainStatus(localEndpoint?: string): Promise<BrainStatus> {
-  const [claudeV, codexV, local] = await Promise.all([
-    which('claude', ['--version']),
+  const [cursorV, grokV, grokOauth, codexV, local] = await Promise.all([
+    which('cursor-agent', ['--version']),
+    which('grok', ['--version']),
+    Promise.resolve(grokBuildOauthPresent()),
     which('codex', ['--version']),
     detectLocal(localEndpoint)
   ])
   return {
-    claude: { available: claudeV !== null, version: claudeV },
+    cursor: { available: cursorV !== null, version: cursorV },
+    grok: { available: grokV !== null && grokOauth, version: grokV },
     codex: { available: codexV !== null, version: codexV },
     local: {
       available: local.endpoint !== null,
@@ -285,24 +434,78 @@ interface CliCall {
   cmd: string
   args: string[]
   input?: string
+  cwd?: string
 }
 
-function buildClaudeCall(req: BrainRequest): CliCall {
-  const args = ['-p', '--output-format', 'json']
-  const model = CLAUDE_TIER_MODEL[req.tier]
-  if (model) args.push('--model', model)
-  if (req.images && req.images.length > 0) {
-    // Pre-approve Read so the model can open reference frames without a permission prompt.
-    args.push('--allowedTools', 'Read')
+function cursorWorkspace(): string {
+  const dir = join(tmpdir(), 'slate-cursor-brain')
+  mkdirSync(dir, { recursive: true })
+  return dir
+}
+
+function grokWorkspace(): string {
+  const dir = join(tmpdir(), 'slate-grok-brain')
+  mkdirSync(dir, { recursive: true })
+  return dir
+}
+
+function buildGrokBuildCall(req: BrainRequest, backend: BrainBackend): CliCall {
+  const workspace = grokWorkspace()
+  const grok = resolveGrokBin()
+  if (!grok) {
+    throw new Error('Grok Build CLI not found. Install it, run grok login, then retry.')
   }
-  args.push('--append-system-prompt', req.system)
-  let prompt = req.prompt
+  let prompt = `${req.system}\n\n---\n\n${req.prompt}`
   if (req.images && req.images.length > 0) {
     prompt +=
-      '\n\nReference media frames to view (use the Read tool on each before answering):\n' +
+      '\n\nReference media frames to view (read each file before answering):\n' +
       req.images.map((p) => `- ${p}`).join('\n')
   }
-  return { cmd: 'claude', args, input: prompt }
+  writeFileSync(join(workspace, grokBuildPromptFileName()), prompt, 'utf8')
+  return {
+    cmd: grok,
+    args: [
+      '-p',
+      grokBuildHeadlessPrompt(),
+      '--output-format',
+      'json',
+      '--always-approve',
+      '--cwd',
+      workspace,
+      '-m',
+      grokBuildCliModel(backend),
+      '--tools',
+      'read_file',
+      '--max-turns',
+      '8'
+    ],
+    cwd: workspace
+  }
+}
+
+function buildCursorCall(req: BrainRequest, backend: BrainBackend): CliCall {
+  const workspace = cursorWorkspace()
+  const launch = resolveCursorLaunch()
+  const args = [
+    ...launch.prefixArgs,
+    '-p',
+    '--output-format',
+    'json',
+    '--mode',
+    'ask',
+    '--trust',
+    '--workspace',
+    workspace,
+    '--model',
+    cursorCliModel(backend, req.tier)
+  ]
+  let prompt = `${req.system}\n\n---\n\n${req.prompt}`
+  if (req.images && req.images.length > 0) {
+    prompt +=
+      '\n\nReference media frames to view (read each file before answering):\n' +
+      req.images.map((p) => `- ${p}`).join('\n')
+  }
+  return { cmd: launch.file, args, input: prompt, cwd: workspace }
 }
 
 function buildCodexCall(req: BrainRequest, lastMessageFile: string): CliCall {
@@ -317,25 +520,35 @@ function buildCodexCall(req: BrainRequest, lastMessageFile: string): CliCall {
   return { cmd: 'codex', args, input: prompt }
 }
 
-function parseClaudeOutput(raw: string): string {
+function parseCursorOutput(raw: string): string {
+  const trimmed = raw.trim()
   try {
-    const parsed = JSON.parse(raw)
+    const parsed = JSON.parse(trimmed)
     if (parsed?.is_error) {
-      const msg: string = typeof parsed.result === 'string' ? parsed.result : 'Claude Code returned an error.'
-      if (/authenticat|oauth|401|logged? ?in|revoked/i.test(msg)) {
+      const msg: string =
+        typeof parsed.result === 'string'
+          ? parsed.result
+          : typeof parsed.error === 'string'
+            ? parsed.error
+            : 'Cursor CLI returned an error.'
+      if (/authenticat|oauth|401|logged? ?in|revoked|not signed|unauthenticated/i.test(msg)) {
         throw new Error(
-          `Claude Code's sign-in has expired or been revoked. Open Terminal, run: claude auth login  — approve in the browser, then retry. (${msg})`
+          `Cursor CLI is not signed in. Open a terminal, run: cursor-agent login  — approve in the browser (Cursor OAuth), then retry. (${msg})`
         )
       }
       throw new Error(msg)
     }
     if (typeof parsed?.result === 'string') return parsed.result
   } catch (e) {
-    if (e instanceof Error && e.message.includes('claude auth login')) throw e
+    if (e instanceof Error && e.message.includes('cursor-agent login')) throw e
     if (e instanceof Error && !(e instanceof SyntaxError)) throw e
-    /* fall through — some versions emit plain text on error */
+    if (/authenticat|oauth|401|not signed|unauthenticated|cursor-agent login/i.test(trimmed)) {
+      throw new Error(
+        `Cursor CLI is not signed in. Open a terminal, run: cursor-agent login  — approve in the browser (Cursor OAuth), then retry. (${trimmed})`
+      )
+    }
   }
-  return raw.trim()
+  return trimmed
 }
 
 export async function brainRun(req: BrainRequest, backend: BrainBackend): Promise<BrainResult> {
@@ -361,9 +574,16 @@ export async function brainRun(req: BrainRequest, backend: BrainBackend): Promis
     }
   }
   if (backend === 'local') return runLocal(req, started)
+  backend = normalizeBrain(backend)
 
   const lastMessageFile = join(tmpdir(), `slate-codex-${req.id}.txt`)
-  const call = backend === 'claude' ? buildClaudeCall(req) : buildCodexCall(req, lastMessageFile)
+  const useGrokBuild = isGrokBrain(backend) && grokBuildReady()
+  const cursor = isCursorBrain(backend) && !useGrokBuild
+  const call = useGrokBuild
+    ? buildGrokBuildCall(req, backend)
+    : cursor
+      ? buildCursorCall(req, backend)
+      : buildCodexCall(req, lastMessageFile)
 
   const codexResult = (rawStdout: string): string => {
     try {
@@ -378,34 +598,60 @@ export async function brainRun(req: BrainRequest, backend: BrainBackend): Promis
 
   const runOnce = (extraNudge?: string): Promise<string> =>
     new Promise((resolve, reject) => {
-      const child = spawn(resolveCli(call.cmd), call.args, {
-        env: brainEnv(),
-        stdio: ['pipe', 'pipe', 'pipe']
-      })
+      const file = cursor || useGrokBuild ? call.cmd : resolveCli(call.cmd)
+      if (useGrokBuild && extraNudge && call.cwd) {
+        try {
+          const promptFile = join(call.cwd, grokBuildPromptFileName())
+          const prev = readFileSync(promptFile, 'utf8')
+          writeFileSync(promptFile, `${prev}\n\n${extraNudge}`, 'utf8')
+        } catch {
+          /* prompt file already written */
+        }
+      }
+      let child: ChildProcess
+      try {
+        child = spawn(file, call.args, {
+          env: cursor ? { ...brainEnv(), CURSOR_INVOKED_AS: 'cursor-agent' } : brainEnv(),
+          stdio: ['pipe', 'pipe', 'pipe'],
+          cwd: call.cwd,
+          windowsHide: true,
+          shell: isWinBatch(file)
+        })
+      } catch (e) {
+        const detail = e instanceof Error ? e.message : String(e)
+        reject(new Error(`Could not launch ${file}: ${detail}`))
+        return
+      }
       running.set(req.id, child)
       let out = ''
       let errOut = ''
-      child.stdout.on('data', (d) => (out += d))
-      child.stderr.on('data', (d) => (errOut += d))
+      child.stdout?.on('data', (d) => (out += d))
+      child.stderr?.on('data', (d) => (errOut += d))
       child.on('error', (e) => {
         running.delete(req.id)
-        reject(new Error(`Could not launch ${call.cmd}: ${e.message}`))
+        reject(new Error(`Could not launch ${file}: ${e.message}`))
       })
       child.on('close', (code) => {
         running.delete(req.id)
         if (code !== 0 && !out.trim()) {
-          reject(new Error(errOut.trim() || `${call.cmd} exited with code ${code}`))
+          reject(new Error(errOut.trim() || `${file} exited with code ${code}`))
         } else {
           try {
-            resolve(backend === 'claude' ? parseClaudeOutput(out) : codexResult(out))
+            resolve(
+              useGrokBuild
+                ? parseGrokBuildOutput(out)
+                : cursor
+                  ? parseCursorOutput(out)
+                  : codexResult(out)
+            )
           } catch (e) {
             reject(e instanceof Error ? e : new Error(String(e)))
           }
         }
       })
       const input = extraNudge ? `${call.input}\n\n${extraNudge}` : call.input
-      child.stdin.write(input ?? '')
-      child.stdin.end()
+      child.stdin?.write(input ?? '')
+      child.stdin?.end()
     })
 
   try {

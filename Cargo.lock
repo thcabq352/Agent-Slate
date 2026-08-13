@@ -1127,7 +1127,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "slate-brain"
-version = "0.1.0"
+version = "0.3.2"
 dependencies = [
  "base64",
  "reqwest",
@@ -1139,7 +1139,7 @@ dependencies = [
 
 [[package]]
 name = "slate-comfy"
-version = "0.1.0"
+version = "0.3.2"
 dependencies = [
  "rand 0.8.7",
  "reqwest",
@@ -1151,7 +1151,7 @@ dependencies = [
 
 [[package]]
 name = "slate-domain"
-version = "0.1.0"
+version = "0.3.2"
 dependencies = [
  "chrono",
  "dirs",
@@ -1163,7 +1163,7 @@ dependencies = [
 
 [[package]]
 name = "slate-engine"
-version = "0.1.0"
+version = "0.3.2"
 dependencies = [
  "axum",
  "clap",

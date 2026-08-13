@@ -1,7 +1,7 @@
 //! Codex CLI adapter — one-shot `codex exec` with `--output-last-message`.
 //! Port of `src/main/brain.ts` `buildCodexCall` / codex result file handling.
 
-use crate::claude::{brain_path, resolve_cli, which_cli, CLI_TIMEOUT};
+use crate::cli::{brain_path, resolve_cli, which_cli, CLI_TIMEOUT};
 use crate::extract_json::extract_json;
 use crate::types::{BrainRequest, BrainResult};
 use std::path::{Path, PathBuf};

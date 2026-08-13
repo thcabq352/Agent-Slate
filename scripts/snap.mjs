@@ -27,7 +27,7 @@ const project = {
   id: 'night-market', name: 'Night Market',
   logline: 'A courier with a stolen drive has one night to cross a city that wants her caught.',
   world: 'Near-future Kowloon-flavored night city — rain-slick streets, layered neon signage, steam from food stalls, sodium vapor against cyan. Everything wet, everything glowing.',
-  defaults: { aspectRatio: '2.39:1', fps: 24, durationSec: 10, targetModel: 'seedance-2', brain: 'claude' },
+  defaults: { aspectRatio: '2.39:1', fps: 24, durationSec: 10, targetModel: 'seedance-2', brain: 'cursor' },
   scenes: [
     {
       id: 'sc-rooftop', name: 'Rooftop Chase', synopsis: 'Kaia sprints the rooftops as drones close in; she leaps the alley gap at the market\'s edge.',

@@ -9,12 +9,15 @@ mod manifest;
 mod packs;
 
 pub use client::{
-    collect_output_files, generate_to_file, load_pack, ComfyClient, ComfyFileRef,
-    DEFAULT_COMFY_BASE, SLATE_DRY_RUN_ENV,
+    collect_output_files, collect_output_files_preferring, generate_to_file, load_pack,
+    ComfyClient, ComfyFileRef, DEFAULT_COMFY_BASE, SLATE_DRY_RUN_ENV,
 };
 pub use inject::inject_workflow;
 pub use manifest::{load_manifest, InputMap, InputMirror, OutputMap, PackLimits, PackManifest};
-pub use packs::{list_packs, packs_dir_from_workspace, PackInfo};
+pub use packs::{
+    is_packs_dir, list_packs, packs_dir_from_workspace, resolve_packs_dir, resolve_packs_dir_from,
+    PackInfo,
+};
 
 /// Crate-level result alias.
 pub type Result<T> = std::result::Result<T, Error>;

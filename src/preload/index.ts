@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { BrainBackend, BrainRequest, Project, SlateApi } from '../shared/types'
+import type {
+  BrainBackend,
+  BrainRequest,
+  GrokVoRenderRequest,
+  Project,
+  SlateApi
+} from '../shared/types'
 
 const api: SlateApi & { brainRunWith: (req: BrainRequest, backend: BrainBackend) => Promise<unknown> } = {
   listProjects: () => ipcRenderer.invoke('projects:list'),
@@ -22,6 +28,9 @@ const api: SlateApi & { brainRunWith: (req: BrainRequest, backend: BrainBackend)
   pickAudio: () => ipcRenderer.invoke('media:pickAudio'),
   ingestMedia: (projectId: string, path: string) => ipcRenderer.invoke('media:ingest', projectId, path),
   analyzeAudio: (path: string) => ipcRenderer.invoke('sound:analyze', path),
+  grokTtsStatus: () => ipcRenderer.invoke('sound:grokTtsStatus'),
+  renderGrokVo: (req: GrokVoRenderRequest) => ipcRenderer.invoke('sound:renderGrokVo', req),
+  revealPath: (path: string) => ipcRenderer.invoke('sound:revealPath', path),
   pathForFile: (file: File) => webUtils.getPathForFile(file),
   copyText: (text: string) => ipcRenderer.invoke('clipboard:copy', text),
   onProjectsChanged: (cb: () => void) => {

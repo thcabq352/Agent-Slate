@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'fs'
 import { execFileSync } from 'child_process'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { discoverCircledTakes, extractStills } from '../src/main/stills'
+import { discoverCircledTakes, extractStills, resolveCircleTakeRecents } from '../src/main/stills'
 
 let root: string
 let clip: string
@@ -64,6 +64,12 @@ describe('discoverCircledTakes', () => {
   it('returns [] when recents.json is absent', async () => {
     const takes = await discoverCircledTakes({ recentsFile: join(root, 'nope.json') })
     expect(takes).toEqual([])
+  })
+
+  it('picks the first existing recents file among candidates', () => {
+    const missing = join(root, 'nope.json')
+    const present = join(root, 'recents.json')
+    expect(resolveCircleTakeRecents([missing, present])).toBe(present)
   })
 })
 

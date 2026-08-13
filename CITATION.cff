@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it under Apache-2.0 and credit Sam Wasserman (wassermanproductions.com) per NOTICE §4(d). This repository is maintained by thcabq352."
-title: "Slate"
-abstract: "A desktop prompt studio for AI filmmaking: plan shots scene by scene, keep characters, locations, and look consistent, direct coverage and music and voices with a local AI brain, and compile production-ready prompts for any image, video, music, or voice generator. This fork adds a Rust film-factory engine (MCP/Hermes + ComfyUI packs)."
+title: "Agent-Slate"
+abstract: "Agent-Slate is a maintained fork of Slate: a desktop prompt studio for AI filmmaking (plan shots, keep continuity, compile prompts) plus a Rust film-factory engine (MCP + ComfyUI packs). Windows, macOS, and Linux. Brains: Grok Build, Cursor Composer, Codex, or local."
 type: software
 authors:
   - family-names: "Wasserman"
@@ -13,11 +13,11 @@ authors:
     alias: "thcabq352"
     role: "maintainer"
 version: "0.3.2"
-date-released: "2026-08-12"
+date-released: "2026-08-13"
 license: "Apache-2.0"
-url: "https://github.com/thcabq352/slate"
-repository-code: "https://github.com/thcabq352/slate"
-repository-artifact: "https://github.com/wassermanproductions/slate"
+url: "https://github.com/thcabq352/Agent-Slate"
+repository-code: "https://github.com/thcabq352/Agent-Slate"
+repository-artifact: "https://github.com/thcabq352/Agent-Slate"
 keywords:
   - filmmaking
   - ai-video
@@ -28,3 +28,5 @@ keywords:
   - mcp
   - comfyui
   - hermes
+  - grok
+  - cursor

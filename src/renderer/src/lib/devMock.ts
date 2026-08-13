@@ -37,7 +37,8 @@ export function installDevMock(): void {
     },
     async brainStatus() {
       return {
-        claude: { available: false, version: null },
+        cursor: { available: false, version: null },
+        grok: { available: false, version: null },
         codex: { available: false, version: null },
         local: { available: false, version: null, endpoint: null }
       }
@@ -85,6 +86,13 @@ export function installDevMock(): void {
     async analyzeAudio() {
       throw new Error('Browser preview — audio analysis runs only in the desktop app.')
     },
+    async grokTtsStatus() {
+      return { ready: false, hint: 'Browser preview — Grok TTS runs only in the desktop app.' }
+    },
+    async renderGrokVo() {
+      throw new Error('Browser preview — Grok TTS runs only in the desktop app.')
+    },
+    async revealPath() {},
     pathForFile() {
       return ''
     },

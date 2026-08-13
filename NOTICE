@@ -13,7 +13,7 @@ This repository is a maintained fork of the upstream project:
 
   Upstream: https://github.com/wassermanproductions/slate
   Maintainer of this fork: thcabq352
-  This fork: https://github.com/thcabq352/slate
+  This fork (Agent-Slate): https://github.com/thcabq352/Agent-Slate
 
 Additional copyright in modifications and new components in this fork
 (including the Rust slate-engine film-factory crates and related docs):

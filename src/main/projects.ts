@@ -7,13 +7,14 @@ import { existsSync } from 'fs'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import type { Project, ProjectMeta } from '../shared/types'
+import { normalizeBrain } from '../shared/types'
 
 export function projectsRoot(): string {
   // SLATE_DATA_DIR overrides the default location (portable installs, tests).
   return process.env.SLATE_DATA_DIR || join(app.getPath('documents'), 'Slate')
 }
 
-function projectDir(id: string): string {
+export function projectDir(id: string): string {
   return join(projectsRoot(), id)
 }
 
@@ -68,7 +69,7 @@ export function newProject(name: string): Project {
       fps: 24,
       durationSec: 8,
       targetModel: 'seedance-2',
-      brain: 'claude'
+      brain: 'cursor'
     },
     scenes: [],
     characters: [],
@@ -94,13 +95,16 @@ export async function createProject(name: string): Promise<Project> {
 
 export async function openProject(id: string): Promise<Project | null> {
   try {
-    return JSON.parse(await fs.readFile(projectFile(id), 'utf8')) as Project
+    const p = JSON.parse(await fs.readFile(projectFile(id), 'utf8')) as Project
+    p.defaults.brain = normalizeBrain(p.defaults.brain)
+    return p
   } catch {
     return null
   }
 }
 
 export async function saveProject(project: Project): Promise<void> {
+  project.defaults.brain = normalizeBrain(project.defaults.brain)
   project.updatedAt = new Date().toISOString()
   const dir = projectDir(project.id)
   await fs.mkdir(dir, { recursive: true })

@@ -1,5 +1,5 @@
 @echo off
-REM Stdio MCP launcher for Hermes / Claude Code (blocking slate_film_factory).
+REM Stdio MCP launcher for Hermes / Cursor / Grok (blocking slate_film_factory).
 setlocal
 cd /d "%~dp0"
 if not defined SLATE_PACKS_DIR set "SLATE_PACKS_DIR=%~dp0workflows\packs"

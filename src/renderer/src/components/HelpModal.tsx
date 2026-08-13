@@ -1,6 +1,13 @@
-// Help — the full guided tour of Slate, organized like a crew handbook.
+// Help — the full guided tour of Agent-Slate, organized like a crew handbook.
 
 import React, { useState } from 'react'
+import { helpShortcutLabel, hostOs } from '../lib/platform'
+import {
+  cursorCliInstallCommand,
+  ffmpegInstallCommand,
+  grokCliInstallCommand,
+  setupCommand
+} from '../../../shared/installHints'
 
 interface Section {
   id: string
@@ -13,6 +20,19 @@ const K = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
   <span className="help-key">{children}</span>
 )
 
+function SetupTip(): React.JSX.Element {
+  const os = hostOs()
+  const label = os === 'win' ? 'Windows' : os === 'mac' ? 'macOS' : 'Linux'
+  return (
+    <p className="help-tip">
+      💻 <b>{label} setup</b> — <K>{setupCommand(os)}</K>. Grok CLI:{' '}
+      <K>{grokCliInstallCommand(os)}</K> then <K>grok login</K>. Cursor:{' '}
+      <K>{cursorCliInstallCommand(os)}</K> then <K>cursor-agent login</K>. ffmpeg:{' '}
+      <K>{ffmpegInstallCommand(os)}</K>.
+    </p>
+  )
+}
+
 const SECTIONS: Section[] = [
   {
     id: 'start',
@@ -21,11 +41,12 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <p>
-          Slate makes the <b>prompts</b> you paste into any generator dramatically better — craft
-          here, then copy. <b>This fork</b> can also run a local film factory: ◆ <b>Agent</b> in
+          Agent-Slate makes the <b>prompts</b> you paste into any generator dramatically better — craft
+          here, then copy. <b>Agent-Slate</b> can also run a local film factory: ◆ <b>Agent</b> in
           the titlebar talks to <K>slate-engine</K> + ComfyUI on <K>127.0.0.1:8188</K> (optional;
-          no API keys, no bundled weights).
+          no bundled weights). Grok VO uses <K>grok login</K> (xAI OAuth), not an API key.
         </p>
+        <SetupTip />
         <ol>
           <li>
             <b>Create a project</b> on the home screen — one project per film or campaign.
@@ -40,21 +61,59 @@ const SECTIONS: Section[] = [
             the Coverage tab and let the brain build the whole scene.
           </li>
           <li>
-            <b>Test the brain</b> — click the pill in the titlebar (&quot;Brain: Claude Code —
-            test&quot;). Green means you&apos;re live.
+            <b>Test the brain</b> — click the pill in the titlebar (it shows whichever brain is
+            in the Project Bible). Green means you&apos;re live. Open this Help anytime with{' '}
+            <K>{helpShortcutLabel()}</K>. Next in this Help: <b>Map &amp; flows</b>.
           </li>
         </ol>
         <p className="help-tip">
-          💡 The brain runs on your own Claude Code or Codex sign-in — or fully offline on a local
-          model (Ollama, LM Studio, vLLM, llama.cpp…). No API keys, ever. Switch brains per project
-          in the Project Bible; pick &quot;Local model&quot; and Slate auto-detects your server and
-          lists its models. For reference breakdowns, load a vision-capable local model.
+          💡 The brain runs on Grok Build OAuth (<K>grok login</K>) for Grok 4.5/4.6, Cursor OAuth
+          for Composer (and as Grok fallback), Codex sign-in, or fully offline on a local model
+          (Ollama, LM Studio, vLLM, llama.cpp…). The brain itself has no API keys. Grok VO
+          (Studios → Sound → Voices) uses the same <K>grok login</K>. Switch
+          brains per project in the Project Bible; pick &quot;Local model&quot;
+          and Agent-Slate auto-detects your server and lists its models. For reference breakdowns,
+          load a vision-capable local model.
         </p>
         <p className="help-tip">
           🎞 <b>Stills Library</b> (Refs tab): scan your dailies for circled takes — or add any
           clip — extract stills, and pin them to a character, location, or look. ✦ Fill on a sheet
           with stills describes the person or place you actually shot, and the sheet keeps the
           images for continuity.
+        </p>
+      </>
+    )
+  },
+  {
+    id: 'map',
+    label: 'Map & flows',
+    title: 'What everything is for',
+    body: (
+      <>
+        <p>
+          Two products share one app. The <b>studio</b> writes prompts you copy into any generator.
+          The optional <b>factory</b> (◆ Agent) generates stills/clips locally with ComfyUI. Full
+          diagrams: <K>docs/GUIDE.md</K>. Agent / MCP rules: <K>AGENTS.json</K>.
+        </p>
+        <p>
+          <b>Titlebar</b> — <K>?</K> Help · brain pill (live test) · <b>✦ First AD</b> (studio
+          planner, no Comfy) · <b>◆ Agent</b> (factory dock). Those two ADs are different chats.
+        </p>
+        <p>
+          <b>Studio flow</b> — Bible → Studios / Coverage / First AD → editor → compile → copy.
+          Transforms (Structure, Tighten, Enrich…) need a brain. No brain still lets you type and
+          compile by hand.
+        </p>
+        <p>
+          <b>Brain</b> — Grok 4.5/4.6 use <K>grok login</K> first, then Cursor. Composer stays on{' '}
+          <K>cursor-agent login</K>. Local = Ollama / LM Studio. Grok VO uses the same{' '}
+          <K>grok login</K>.
+        </p>
+        <p>
+          <b>Factory flow</b> — <K>cargo build -p slate-engine</K> → Connect in ◆ Agent →{' '}
+          <b>Run brief</b> (Comfy <K>:8188</K>). External agents (Cursor, Hermes, Grok) must call
+          blocking <K>slate_film_factory</K> with a 1800s timeout — never{' '}
+          <K>background: true</K> from the agent.
         </p>
       </>
     )
@@ -150,7 +209,7 @@ const SECTIONS: Section[] = [
   {
     id: 'notes',
     label: "Director's Notes & First AD",
-    title: 'Two ways to talk to the brain',
+    title: "Director's Notes vs First AD vs Factory AD",
     body: (
       <>
         <p>
@@ -159,15 +218,14 @@ const SECTIONS: Section[] = [
           updates; ask a question and it answers without touching anything.
         </p>
         <p>
-          <b>✦ First AD</b> (titlebar button) is <i>optional</i> and project-wide: describe what
-          you&apos;re after and hone it in a back-and-forth. When intent is clear, it runs the set —
-          creating scenes, shots, specs, prompts, cast, locations, even music cues and voices — with
-          a receipt for every action. It focuses the UI on what it built; everything it writes goes
-          through version history like your own edits.
+          <b>✦ First AD</b> (titlebar) is the studio planner: talk through the film, then it writes
+          the paper — scenes, shots, bible, music cues — with a receipt for every action. No Comfy.
+          ◆ <b>Agent</b> has a separate <b>Factory AD</b> on the engine (<K>slate_first_ad</K>):
+          continuity locks and a scene plan for generates.
         </p>
         <p className="help-tip">
-          💡 Use First AD to block out fast (&quot;90-second chase, Seedance, 10s chunks&quot;),
-          then refine shots by hand. They&apos;re designed to hand off to each other.
+          💡 Block the shoot with ✦ First AD (&quot;90-second chase, Seedance, 10s chunks&quot;),
+          then send the factory floor to Factory AD. They do not share a chat.
         </p>
       </>
     )
@@ -193,7 +251,7 @@ const SECTIONS: Section[] = [
           </li>
           <li>
             <b>Sequence Chunks</b> — for long sequences: set total length and chunk size (say 180s
-            into 20s pieces) and Slate writes one generation prompt per chunk with explicit
+            into 20s pieces) and Agent-Slate writes one generation prompt per chunk with explicit
             <b> continuity handoffs</b> — each chunk opens exactly where the last ended. Optionally
             beat-directed inside each chunk.
           </li>
@@ -238,7 +296,7 @@ const SECTIONS: Section[] = [
             prompt; names never appear in output.
           </li>
           <li>
-            <b>Sound</b> — see the Sound Department section.
+            <b>Sound</b> — Studios → Sound (score, voices, Grok VO). See Sound Department below.
           </li>
         </ul>
       </>
@@ -258,14 +316,16 @@ const SECTIONS: Section[] = [
           with warnings if the cue exceeds the tool&apos;s limits.
         </p>
         <p>
-          <b>Voices</b> — voice sheets for your characters (timbre, accent, pacing, texture,
-          emotional range), linkable to your cast. Compiling produces a voice-design prompt{' '}
-          <i>plus audition text</i> for ElevenLabs, Hume, or MiniMax — paste both and judge the
-          voice on lines that exercise its range.
+          <b>Voices</b> — sheets for your characters, then <b>Speak with Grok</b> renders an MP3
+          via xAI TTS into the project <K>vo/</K> folder (Eve, Ara, Leo, Rex, Sal). Uses your{' '}
+          <K>grok login</K> session — no API key. ✦ Direct tags the
+          line for delivery. Grok brains also prefer that session; Composer still uses{' '}
+          <K>cursor-agent login</K>. <b>Prompt →</b> still
+          compiles ElevenLabs / Hume / MiniMax paste-ins.
         </p>
         <p>
           <b>♫ Match a reference</b> — drop any audio file (or video with music/voice) onto the
-          drop zone. Slate measures the signal locally — tempo, pitch register, dynamics,
+          drop zone. Agent-Slate measures the signal locally — tempo, pitch register, dynamics,
           brightness, energy arc — and the brain reverse-engineers a matching cue or voice sheet.
           Add a hint (&quot;vault-heist score&quot;) for sharper results. Nothing is uploaded.
         </p>
@@ -325,7 +385,7 @@ const SECTIONS: Section[] = [
         </p>
         <ul>
           <li>
-            <b>Preflight warnings</b> — before you paste, Slate checks your shot against the
+            <b>Preflight warnings</b> — before you paste, Agent-Slate checks your shot against the
             model&apos;s real limits (max duration, allowed aspect ratios, fps) and warns you.
           </li>
           <li>
@@ -349,7 +409,7 @@ const SECTIONS: Section[] = [
   {
     id: 'agent',
     label: 'Agent dock & factory',
-    title: 'Local film factory (this fork)',
+    title: 'Local film factory (Agent-Slate)',
     body: (
       <>
         <p>
@@ -368,22 +428,31 @@ const SECTIONS: Section[] = [
           </li>
           <li>
             <b>Assemble cut</b> — concatenates this project&apos;s takes to{' '}
-            <K>cut/slate_cut.mp4</K> (stills become 2-second holds).
+            <K>cut/slate_cut.mp4</K> (stills become 2-second holds). Tick{' '}
+            <b>Circled takes only</b> after <b>Approve</b>.
           </li>
           <li>
             <b>Compile cues</b> — music text for Suno/generic. No audio file is rendered.
           </li>
           <li>
-            <b>Hermes</b> — blocking <K>slate_film_factory</K>, tool timeout <b>1800s</b>. Do not
-            pass <K>background: true</K> from the agent.
+            <b>Factory AD</b> — engine operator via <K>slate_first_ad</K> (not the titlebar ✦ First
+            AD). Continuity and a scene plan for generates.
+          </li>
+          <li>
+            <b>External agents</b> (Cursor / Hermes / Grok) — blocking <K>slate_film_factory</K>,
+            tool timeout <b>1800s</b>. Do not pass <K>background: true</K> from the agent.
           </li>
           <li>
             <b>Cancel</b> — stops between shots and interrupts the live Comfy prompt.
           </li>
+          <li>
+            <b>Approve</b> — circles the latest take in <K>project.json</K> (same ⭕ as Deliver).
+            ffmpeg is probed via <K>SLATE_FFMPEG</K> and common Windows install paths.
+          </li>
         </ul>
         <p className="help-tip">
           💡 Comfy must already be on <K>http://127.0.0.1:8188</K>. Weights stay in your Comfy
-          folder — Slate never ships them. Dry-run: <K>SLATE_DRY_RUN=1</K> on the engine process.
+          folder — Agent-Slate never ships them. Dry-run: <K>SLATE_DRY_RUN=1</K> on the engine process.
         </p>
       </>
     )
@@ -400,11 +469,18 @@ const SECTIONS: Section[] = [
             what&apos;s wrong if it fails.
           </li>
           <li>
-            <b>&quot;Sign-in expired/revoked&quot;</b> — open Terminal, run{' '}
-            <K>claude auth login</K>, approve in the browser.
+            <b>Grok 4.5 / 4.6</b> — prefer Grok Build OAuth (<K>grok login</K> + the official{' '}
+            <K>grok</K> CLI). If that session is missing, Agent-Slate falls back to Cursor OAuth
+            (<K>cursor-agent login</K>). Composer always stays on Cursor. Install commands follow
+            your OS (see Getting Started).
           </li>
           <li>
-            <b>Codex</b> — Slate uses the codex bundled with the ChatGPT desktop app, which shares
+            <b>&quot;Sign-in expired/revoked&quot;</b> — for Grok, run <K>grok login</K>. For
+            Composer, open a terminal (Windows: PowerShell; macOS/Linux: Terminal), run{' '}
+            <K>cursor-agent login</K>, approve Cursor OAuth in the browser.
+          </li>
+          <li>
+            <b>Codex</b> — Agent-Slate uses the codex bundled with the ChatGPT desktop app, which shares
             your ChatGPT sign-in automatically. If Codex fails, open the ChatGPT app once and make
             sure you&apos;re signed in.
           </li>
@@ -415,16 +491,18 @@ const SECTIONS: Section[] = [
           <li>
             <b>◆ Agent / slate-engine</b> — <K>cargo build -p slate-engine</K>, then Connect in
             the Agent dock. <b>Run brief</b> starts a background factory (watch the status pills).
-            Hermes must call blocking <K>slate_film_factory</K> with a <b>1800s</b> tool timeout —
-            never <K>background: true</K> from the agent.
+            External agents must call blocking <K>slate_film_factory</K> with a <b>1800s</b> tool
+            timeout — never <K>background: true</K> from the agent.
           </li>
           <li>
-            <b>Other apps / agents</b> — Slate also runs the original project MCP while open.
-            Connect with: <K>claude mcp add slate -- node …/slate/mcp/slate-mcp.mjs</K>
+            <b>Other apps / agents</b> — Agent-Slate also exposes its studio MCP (
+            <K>mcp/slate-mcp.mjs</K>) while the app is open. Connect with Cursor: add that file to{' '}
+            <K>~/.cursor/mcp.json</K> (Windows: <K>%USERPROFILE%\.cursor\mcp.json</K>).
           </li>
           <li>
-            <b>Your data</b> — projects are plain JSON in <K>~/Documents/Slate/</K>. Back up, sync,
-            or version them however you like.
+            <b>Your data</b> — projects are plain JSON in <K>~/Documents/Slate/</K> (Windows:{' '}
+            <K>%USERPROFILE%\Documents\Slate</K>). That folder name is shared with upstream Slate;
+            override with <K>SLATE_DATA_DIR</K>. Back up, sync, or version them however you like.
           </li>
         </ul>
       </>
@@ -439,7 +517,7 @@ export default function HelpModal({ onClose }: { onClose(): void }): React.JSX.E
     <div className="modal-scrim" onClick={onClose}>
       <div className="modal help-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>Slate Help</h2>
+          <h2>Agent-Slate Help</h2>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>
             ✕
           </button>
@@ -450,6 +528,7 @@ export default function HelpModal({ onClose }: { onClose(): void }): React.JSX.E
               <button
                 key={s.id}
                 className={`help-nav-item ${active === s.id ? 'active' : ''}`}
+                aria-current={active === s.id ? 'true' : undefined}
                 onClick={() => setActive(s.id)}
               >
                 {s.label}
@@ -463,6 +542,8 @@ export default function HelpModal({ onClose }: { onClose(): void }): React.JSX.E
         </div>
         <div className="help-foot">
           <span>
+            Help shortcut <b>{helpShortcutLabel()}</b>
+            {' · '}
             Created by <b>Sam Wasserman</b> · Maintained by{' '}
             <a href="https://github.com/thcabq352" target="_blank" rel="noreferrer">
               thcabq352

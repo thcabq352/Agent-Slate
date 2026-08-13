@@ -1,33 +1,35 @@
 #!/usr/bin/env bash
-# Slate macOS installer
+# Agent-Slate macOS/Linux bootstrap.
+# In a clone:  ./install.sh --grok
+# From the internet:
+#   curl -fsSL https://raw.githubusercontent.com/thcabq352/Agent-Slate/main/install.sh | bash -s -- --grok
 #
-# Downloads the latest release and installs it to /Applications, bypassing
-# the Gatekeeper "app is damaged" false alarm that macOS shows for
-# browser-downloaded unsigned apps (terminal downloads aren't quarantined).
-#
-# Usage:
-#   curl -fsSL https://raw.githubusercontent.com/wassermanproductions/slate/main/install.sh | bash
+# This is the Agent-Slate fork installer (from source). Upstream Slate's macOS
+# .app zip lives at wassermanproductions/slate — do not mix the two.
+
 set -euo pipefail
 
-REPO="wassermanproductions/slate"
-ASSET="Slate-macOS.zip"
+REPO_URL="${AGENT_SLATE_REPO:-https://github.com/thcabq352/Agent-Slate.git}"
+DEST="${AGENT_SLATE_DIR:-}"
 
-DEST="/Applications"
-if [ ! -w "$DEST" ]; then
-  DEST="$HOME/Applications"
-  mkdir -p "$DEST"
+in_repo() {
+  [ -f package.json ] && grep -q '"name": "agent-slate"' package.json
+}
+
+if in_repo; then
+  ROOT="$(pwd)"
+else
+  DEST="${DEST:-$HOME/Agent-Slate}"
+  if [ ! -f "$DEST/package.json" ]; then
+    if ! command -v git >/dev/null 2>&1; then
+      echo "git is required to clone Agent-Slate." >&2
+      exit 1
+    fi
+    echo "→ cloning $REPO_URL to $DEST"
+    git clone "$REPO_URL" "$DEST"
+  fi
+  ROOT="$DEST"
+  cd "$ROOT"
 fi
 
-TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
-
-echo "Downloading the latest Slate (Apple Silicon)..."
-curl -fL --progress-bar "https://github.com/$REPO/releases/latest/download/$ASSET" -o "$TMP/$ASSET"
-
-echo "Installing to $DEST..."
-rm -rf "$DEST/Slate.app"
-ditto -x -k "$TMP/$ASSET" "$DEST"
-xattr -cr "$DEST/Slate.app" 2>/dev/null || true
-
-echo "✓ Slate installed — launching."
-open "$DEST/Slate.app"
+exec bash "$ROOT/scripts/setup.sh" "$@"

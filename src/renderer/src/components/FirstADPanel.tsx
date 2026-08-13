@@ -70,7 +70,7 @@ export default function FirstADPanel({ onClose }: { onClose(): void }): React.JS
       <div className="ad-head">
         <div>
           <div className="ad-title">First AD</div>
-          <div className="ad-sub">Talk it through — then it runs the set for you.</div>
+          <div className="ad-sub">Studio planner — scenes, shots, prompts. No Comfy.</div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {msgs.length > 0 && (
@@ -88,8 +88,8 @@ export default function FirstADPanel({ onClose }: { onClose(): void }): React.JS
         {msgs.length === 0 && (
           <div className="ad-hint">
             <p>
-              Describe what you&apos;re after and hone it together — when it&apos;s clear, the AD
-              builds it: scenes, shots, specs, prompts, cast, locations.
+              Talk the film through. When it&apos;s clear, this AD writes the paper: scenes, shots,
+              specs, prompts, cast, locations. Generates live in ◆ Agent — not here.
             </p>
             <p className="ad-examples">
               <i>“I need a 90-second car chase through a night market, Seedance, 10s chunks.”</i>
@@ -125,7 +125,7 @@ export default function FirstADPanel({ onClose }: { onClose(): void }): React.JS
       <div className="ad-input">
         <textarea
           rows={2}
-          placeholder="Talk to your First AD…"
+          placeholder="What are we shooting?"
           value={msg}
           onChange={(e) => setMsg(e.target.value)}
           onKeyDown={(e) => {

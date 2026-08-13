@@ -243,6 +243,35 @@ export interface VoiceSheet {
   emotionalRange: string
   sampleLine: string
   notes: string
+  /** Grok TTS built-in or custom voice id (eve, ara, leo, rex, sal, …). */
+  grokVoiceId?: string
+  /** Line sent to Grok TTS (may include speech tags). */
+  voText?: string
+  /** Last rendered MP3 under the project `vo/` folder. */
+  voPath?: string
+  /** BCP-47 language for Grok TTS. Default en. */
+  voLanguage?: string
+}
+
+export interface GrokTtsStatus {
+  ready: boolean
+  hint: string
+}
+
+export interface GrokVoRenderRequest {
+  projectId: string
+  voiceSheetId: string
+  name?: string
+  text: string
+  voiceId: string
+  language?: string
+}
+
+export interface GrokVoRenderResult {
+  path: string
+  fileUrl: string
+  bytes: number
+  voiceId: string
 }
 
 export interface ChatMsg {
@@ -286,8 +315,49 @@ export interface ProjectMeta {
 export type BrainTier = 'fast' | 'standard' | 'top'
 
 /** Which engine powers agent tasks. 'local' talks to any OpenAI-compatible
- *  localhost server (Ollama, LM Studio, vLLM, llama.cpp, KoboldCpp, Jan…). */
-export type BrainBackend = 'claude' | 'codex' | 'local'
+ *  localhost server (Ollama, LM Studio, vLLM, llama.cpp, KoboldCpp, Jan…).
+ *  Grok 4.5 / 4.6 prefer Grok Build (`grok login`), then Cursor (`cursor-agent login`).
+ *  Composer stays on Cursor CLI. */
+export const BRAIN_BACKENDS = ['cursor', 'grok-4.5', 'grok-4.6', 'codex', 'local'] as const
+export type BrainBackend = (typeof BRAIN_BACKENDS)[number]
+
+export const BRAIN_PICKER: Array<{ value: BrainBackend; label: string }> = [
+  { value: 'cursor', label: 'Cursor (Composer)' },
+  { value: 'grok-4.5', label: 'Grok 4.5 (Grok Build, else Cursor)' },
+  { value: 'grok-4.6', label: 'Grok 4.6 (Grok Build, else Cursor)' },
+  { value: 'codex', label: 'Codex CLI (subscription)' },
+  { value: 'local', label: 'Local model (offline)' }
+]
+
+/** Map persisted / MCP values onto a live backend. Old `'claude'` projects become Cursor. */
+export function normalizeBrain(brain: string | undefined | null): BrainBackend {
+  if (brain === 'codex' || brain === 'local' || brain === 'cursor') return brain
+  if (brain === 'grok-4.5' || brain === 'grok-4.6') return brain
+  return 'cursor'
+}
+
+export function isCursorBrain(brain: BrainBackend): boolean {
+  return brain === 'cursor' || brain === 'grok-4.5' || brain === 'grok-4.6'
+}
+
+export function isGrokBrain(brain: BrainBackend): boolean {
+  return brain === 'grok-4.5' || brain === 'grok-4.6'
+}
+
+export function brainDisplayName(brain: BrainBackend): string {
+  switch (brain) {
+    case 'cursor':
+      return 'Cursor'
+    case 'grok-4.5':
+      return 'Grok 4.5'
+    case 'grok-4.6':
+      return 'Grok 4.6'
+    case 'codex':
+      return 'Codex'
+    case 'local':
+      return 'Local model'
+  }
+}
 
 export interface BrainRequest {
   id: string
@@ -312,7 +382,9 @@ export interface BrainResult {
 }
 
 export interface BrainStatus {
-  claude: { available: boolean; version: string | null }
+  cursor: { available: boolean; version: string | null }
+  /** Official Grok Build CLI + `grok login` session (`~/.grok/auth.json`). */
+  grok: { available: boolean; version: string | null }
   codex: { available: boolean; version: string | null }
   local: { available: boolean; version: string | null; endpoint: string | null }
 }
@@ -332,10 +404,19 @@ export interface EngineEnsureResult {
 
 export interface EngineHealth {
   engine?: boolean
-  comfy?: { ok: boolean; url?: string }
-  vision?: { ready?: boolean; model?: string; hint?: string; preferredModel?: string }
+  comfy?: { ok: boolean; url?: string; error?: string }
+  vision?: {
+    ready?: boolean
+    model?: string
+    hint?: string
+    preferredModel?: string
+    endpoint?: string
+  }
   qualityGate?: { passThreshold?: number; maxRetries?: number; judgeModel?: string }
   dryRun?: boolean
+  packsDir?: string
+  packsOk?: boolean
+  ffmpeg?: { ok?: boolean; path?: string | null; version?: string | null; hint?: string }
   [key: string]: unknown
 }
 
@@ -385,6 +466,9 @@ export interface SlateApi {
   stillsDiscover(): Promise<CircledTake[]>
   stillsExtract(projectId: string, mediaPath: string, inSec?: number | null, outSec?: number | null): Promise<string[]>
   analyzeAudio(path: string): Promise<AudioFingerprint>
+  grokTtsStatus(): Promise<GrokTtsStatus>
+  renderGrokVo(req: GrokVoRenderRequest): Promise<GrokVoRenderResult>
+  revealPath(path: string): Promise<void>
   pathForFile(file: File): string
   copyText(text: string): Promise<void>
   revealProject(id: string): Promise<void>

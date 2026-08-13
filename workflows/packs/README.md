@@ -1,6 +1,6 @@
 # Comfy packs
 
-Checked-in API graphs for `slate_film_factory` / `slate_run_pack` / `slate_generate_shot`. Weights stay in your Comfy install.
+Checked-in API graphs for Agent-Slate `slate_film_factory` / `slate_run_pack` / `slate_generate_shot`. Weights stay in your Comfy install. Snapshot: [docs/STATUS.md](../../docs/STATUS.md) · flows: [docs/GUIDE.md](../../docs/GUIDE.md).
 
 | Pack | Modality | Graph | Factory |
 |------|----------|--------|---------|

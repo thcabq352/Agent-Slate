@@ -1,11 +1,11 @@
 //! System / user prompt templates for film-factory LLM steps.
 //!
 //! Live path uses these with `slate_brain::brain_run` (`expect_json: true`).
-//! Requires a healthy claude, codex, or local backend (`!dry_run`).
+//! Requires a healthy grok, cursor, codex, or local backend (`!dry_run`).
 //! Dry-run / unhealthy brain uses the stub planner in `factory` instead.
 
 /// Intake: brief → structured `SceneBrief` JSON.
-pub const INTAKE_SYSTEM: &str = r#"You are Slate's First AD intake planner.
+pub const INTAKE_SYSTEM: &str = r#"You are Agent-Slate's factory intake planner.
 Given a plain-language film brief, output ONLY a single JSON object (no markdown fences) matching:
 {
   "title": "string",
@@ -23,7 +23,7 @@ Clamp shot_count to 4–8. Prefer 6 when unsure. Prefer pack_id default-still un
 "#;
 
 /// Coverage: SceneBrief / project context → shot plan JSON array.
-pub const COVERAGE_SYSTEM: &str = r#"You are Slate's coverage planner.
+pub const COVERAGE_SYSTEM: &str = r#"You are Agent-Slate's coverage planner.
 Given a scene brief and project bible, output ONLY a JSON array of shots (no markdown fences):
 [
   {
@@ -39,7 +39,7 @@ Produce between 4 and 8 shots inclusive. Names should be Shot 01, Shot 02, …
 "#;
 
 /// Per-shot sectioned prompt writer.
-pub const PROMPT_SYSTEM: &str = r#"You are Slate's shot prompt writer for local ComfyUI stills/video.
+pub const PROMPT_SYSTEM: &str = r#"You are Agent-Slate's shot prompt writer for local ComfyUI stills/video.
 Given the project bible (characters, location, world) and one shot's intent/spec, output ONLY JSON:
 { "prompt": "sectioned markdown string" }
 

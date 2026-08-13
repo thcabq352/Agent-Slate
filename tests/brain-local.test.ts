@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { createServer, Server } from 'http'
 import { AddressInfo } from 'net'
 import { detectLocal, brainRun } from '../src/main/brain'
+import { normalizeBrain } from '../src/shared/types'
 
 let server: Server
 let endpoint = ''
@@ -101,5 +102,17 @@ describe('local brain adapter', () => {
     )
     expect(res.ok).toBe(false)
     expect(res.error).toMatch(/No local model server found/)
+  })
+})
+
+describe('normalizeBrain', () => {
+  it('maps legacy claude onto cursor', () => {
+    expect(normalizeBrain('claude')).toBe('cursor')
+    expect(normalizeBrain('cursor')).toBe('cursor')
+    expect(normalizeBrain('codex')).toBe('codex')
+    expect(normalizeBrain('local')).toBe('local')
+    expect(normalizeBrain('grok-4.5')).toBe('grok-4.5')
+    expect(normalizeBrain('grok-4.6')).toBe('grok-4.6')
+    expect(normalizeBrain(undefined)).toBe('cursor')
   })
 })

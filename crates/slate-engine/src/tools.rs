@@ -80,21 +80,11 @@ fn resolve_packs_dir_for_test() -> PathBuf {
             return PathBuf::from(p);
         }
     }
-    // slate-engine crate → workspace root/workflows/packs
-    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let candidates = [
-        manifest.join("../../workflows/packs"),
-        std::env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
-            .join("workflows/packs"),
-        PathBuf::from("workflows/packs"),
-    ];
-    for c in candidates {
-        if c.join("default-still").join("manifest.json").is_file() {
-            return c.canonicalize().unwrap_or(c);
-        }
+    let from_crate = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../workflows/packs");
+    if slate_comfy::is_packs_dir(&from_crate) {
+        return from_crate.canonicalize().unwrap_or(from_crate);
     }
-    manifest.join("../../workflows/packs")
+    slate_comfy::resolve_packs_dir()
 }
 
 /// One entry in the tool catalog returned by `GET /tools` and MCP `tools/list`.
@@ -138,7 +128,7 @@ pub fn catalog() -> Vec<ToolInfo> {
                 "properties": {
                     "brief": { "type": "string", "description": "Plain-language scene brief" },
                     "pack_id": { "type": "string", "description": "Comfy pack id (default default-still)" },
-                    "brain": { "type": "string", "enum": ["claude", "codex", "local"] },
+                    "brain": { "type": "string", "enum": ["cursor", "grok-4.5", "grok-4.6", "codex", "local"] },
                     "shot_count": { "type": "integer", "minimum": 4, "maximum": 8 },
                     "project_name": { "type": "string" },
                     "background": {
@@ -177,7 +167,7 @@ pub fn catalog() -> Vec<ToolInfo> {
         },
         ToolInfo {
             name: "slate_first_ad".into(),
-            description: "First AD conversational turn: plan/mutate a project (args: projectId, message, history?, brain?).".into(),
+            description: "Factory AD conversational turn (tool id slate_first_ad): plan/mutate a project for local generates. Separate from the studio titlebar First AD. Args: projectId, message, history?, brain?.".into(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
@@ -193,7 +183,7 @@ pub fn catalog() -> Vec<ToolInfo> {
                             }
                         }
                     },
-                    "brain": { "type": "string", "enum": ["claude", "codex", "local"] }
+                    "brain": { "type": "string", "enum": ["cursor", "grok-4.5", "grok-4.6", "codex", "local"] }
                 },
                 "required": ["projectId", "message"]
             }),
@@ -273,6 +263,19 @@ pub fn catalog() -> Vec<ToolInfo> {
             }),
         },
         ToolInfo {
+            name: "slate_circle_take".into(),
+            description: "Mark a take Circled in project.json (human approve). Args: projectId, takeId?, shotId? — defaults to the latest take.".into(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "projectId": { "type": "string" },
+                    "takeId": { "type": "string" },
+                    "shotId": { "type": "string" }
+                },
+                "required": ["projectId"]
+            }),
+        },
+        ToolInfo {
             name: "slate_assemble".into(),
             description: "Concat project takes into cut/slate_cut.mp4 (circledOnly optional).".into(),
             input_schema: json!({
@@ -325,6 +328,7 @@ pub async fn invoke(tool: &str, args: Value, ctx: &EngineCtx) -> Result<Value, S
         "slate_run_pack" => slate_run_pack(ctx, args).await,
         "slate_compile_music" => slate_compile_music(args),
         "slate_list_takes" => slate_list_takes(args),
+        "slate_circle_take" => slate_circle_take(args),
         "slate_assemble" => slate_assemble(args),
         "slate_cancel" => slate_cancel(ctx).await,
         "slate_status" => slate_status(ctx),
@@ -334,9 +338,12 @@ pub async fn invoke(tool: &str, args: Value, ctx: &EngineCtx) -> Result<Value, S
 
 async fn slate_health(ctx: &EngineCtx) -> Result<Value, String> {
     let url = ctx.config.comfy_base_url.clone();
-    let comfy_ok = match ComfyClient::new(&url) {
-        Ok(client) => client.health().await.is_ok(),
-        Err(_) => false,
+    let (comfy_ok, comfy_error) = match ComfyClient::new(&url) {
+        Ok(client) => match client.health().await {
+            Ok(()) => (true, None),
+            Err(e) => (false, Some(e.to_string())),
+        },
+        Err(e) => (false, Some(e.to_string())),
     };
 
     let brain = slate_brain::brain_status(None).await;
@@ -356,11 +363,15 @@ async fn slate_health(ctx: &EngineCtx) -> Result<Value, String> {
         "comfy": {
             "ok": comfy_ok,
             "url": url,
+            "error": comfy_error,
         },
         "brain": brain_json,
         "vision": judge_json,
         "qualityGate": gate_json,
+        "packsDir": ctx.config.packs_dir,
+        "packsOk": slate_comfy::is_packs_dir(&ctx.config.packs_dir),
         "dryRun": ctx.config.dry_run,
+        "ffmpeg": crate::media::ffmpeg_status(),
     }))
 }
 
@@ -393,15 +404,10 @@ async fn slate_film_factory(ctx: &EngineCtx, args: Value) -> Result<Value, Strin
         .or_else(|| args.get("packId"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    let brain =
-        args.get("brain")
-            .and_then(|v| v.as_str())
-            .and_then(|s| match s.to_lowercase().as_str() {
-                "claude" => Some(slate_domain::BrainBackend::Claude),
-                "codex" => Some(slate_domain::BrainBackend::Codex),
-                "local" => Some(slate_domain::BrainBackend::Local),
-                _ => None,
-            });
+    let brain = args
+        .get("brain")
+        .and_then(|v| v.as_str())
+        .and_then(slate_domain::BrainBackend::parse);
     let shot_count = args
         .get("shot_count")
         .or_else(|| args.get("shotCount"))
@@ -538,12 +544,7 @@ async fn slate_first_ad(ctx: &EngineCtx, args: Value) -> Result<Value, String> {
     let brain = args
         .get("brain")
         .and_then(|v| v.as_str())
-        .and_then(|s| match s {
-            "claude" => Some(slate_domain::BrainBackend::Claude),
-            "codex" => Some(slate_domain::BrainBackend::Codex),
-            "local" => Some(slate_domain::BrainBackend::Local),
-            _ => None,
-        });
+        .and_then(slate_domain::BrainBackend::parse);
 
     let result = run_first_ad(
         ctx,
@@ -771,6 +772,24 @@ fn slate_compile_music(args: Value) -> Result<Value, String> {
         .unwrap_or("generic");
     let compiled = crate::music::compile_project_music(project_id, cue_id, target)?;
     serde_json::to_value(compiled).map_err(|e| e.to_string())
+}
+
+fn slate_circle_take(args: Value) -> Result<Value, String> {
+    let project_id = args
+        .get("projectId")
+        .or_else(|| args.get("project_id"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing required arg: projectId".to_string())?;
+    let take_id = args
+        .get("takeId")
+        .or_else(|| args.get("take_id"))
+        .and_then(|v| v.as_str());
+    let shot_id = args
+        .get("shotId")
+        .or_else(|| args.get("shot_id"))
+        .and_then(|v| v.as_str());
+    let out = slate_domain::circle_take(project_id, take_id, shot_id).map_err(|e| e.to_string())?;
+    serde_json::to_value(out).map_err(|e| e.to_string())
 }
 
 fn slate_assemble(args: Value) -> Result<Value, String> {

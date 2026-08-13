@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use crate::types::{new_project, Project};
+use crate::types::{new_project, Project, TakeRating};
 
 /// Lightweight listing row for the home screen / navigator.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -155,6 +155,111 @@ pub fn save_project(project: &mut Project) -> Result<()> {
     }
     fs::rename(&tmp, &dest)?;
     Ok(())
+}
+
+/// Result of circling a take (persisted to project.json).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CircledTakeResult {
+    pub ok: bool,
+    pub project_id: String,
+    pub scene_id: String,
+    pub shot_id: String,
+    pub shot_name: String,
+    pub take_id: String,
+    pub rating: TakeRating,
+}
+
+/// Mark a take as circled. `take_id` wins; else latest take on `shot_id`; else latest in the project.
+pub fn circle_take(
+    project_id: &str,
+    take_id: Option<&str>,
+    shot_id: Option<&str>,
+) -> Result<CircledTakeResult> {
+    let mut project = open_project(project_id)?.ok_or("Project not found")?;
+
+    let mut found: Option<(usize, usize, usize)> = None;
+    if let Some(tid) = take_id.filter(|s| !s.is_empty()) {
+        for (si, scene) in project.scenes.iter().enumerate() {
+            for (shi, shot) in scene.shots.iter().enumerate() {
+                if let Some(ti) = shot.takes.iter().position(|t| t.id == tid) {
+                    found = Some((si, shi, ti));
+                    break;
+                }
+            }
+            if found.is_some() {
+                break;
+            }
+        }
+        if found.is_none() {
+            return Err(format!("take not found: {tid}").into());
+        }
+    } else if let Some(sid) = shot_id.filter(|s| !s.is_empty()) {
+        for (si, scene) in project.scenes.iter().enumerate() {
+            if let Some(shi) = scene
+                .shots
+                .iter()
+                .position(|s| s.id == sid || s.name == sid)
+            {
+                let shot = &scene.shots[shi];
+                if shot.takes.is_empty() {
+                    return Err(format!("no takes on shot {sid}").into());
+                }
+                found = Some((si, shi, shot.takes.len() - 1));
+                break;
+            }
+        }
+        if found.is_none() {
+            return Err(format!("shot not found: {sid}").into());
+        }
+    } else {
+        let mut best: Option<(usize, usize, usize, String)> = None;
+        for (si, scene) in project.scenes.iter().enumerate() {
+            for (shi, shot) in scene.shots.iter().enumerate() {
+                for (ti, take) in shot.takes.iter().enumerate() {
+                    let ts = take.logged_at.clone();
+                    let better = best
+                        .as_ref()
+                        .map(|b| ts.as_str() >= b.3.as_str())
+                        .unwrap_or(true);
+                    if better {
+                        best = Some((si, shi, ti, ts));
+                    }
+                }
+            }
+        }
+        found = best.map(|(si, shi, ti, _)| (si, shi, ti));
+        if found.is_none() {
+            return Err("no takes on this project".into());
+        }
+    }
+
+    let (si, shi, ti) = found.unwrap();
+    {
+        let take = &mut project.scenes[si].shots[shi].takes[ti];
+        take.rating = TakeRating::Circled;
+        if !take.notes.to_ascii_lowercase().contains("human approved") {
+            if take.notes.trim().is_empty() {
+                take.notes = "human approved".into();
+            } else {
+                take.notes = format!("{} | human approved", take.notes.trim());
+            }
+        }
+    }
+    let scene_id = project.scenes[si].id.clone();
+    let shot_id_out = project.scenes[si].shots[shi].id.clone();
+    let shot_name = project.scenes[si].shots[shi].name.clone();
+    let take_id_out = project.scenes[si].shots[shi].takes[ti].id.clone();
+    save_project(&mut project)?;
+    Ok(CircledTakeResult {
+        ok: true,
+        project_id: project.id,
+        scene_id,
+        shot_id: shot_id_out,
+        shot_name,
+        take_id: take_id_out,
+        rating: TakeRating::Circled,
+    })
 }
 
 fn load_project_from_path(path: &Path) -> Result<Project> {

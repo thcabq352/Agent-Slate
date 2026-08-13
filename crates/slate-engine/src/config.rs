@@ -13,9 +13,9 @@ pub struct EngineConfig {
     pub data_dir: PathBuf,
     /// ComfyUI HTTP base URL (`SLATE_COMFY_URL`, default `http://127.0.0.1:8188`).
     pub comfy_base_url: String,
-    /// Workflow packs directory (`SLATE_PACKS_DIR`).
+    /// Workflow packs directory (`SLATE_PACKS_DIR`, else next to the engine binary).
     pub packs_dir: PathBuf,
-    /// Default brain backend name: `claude` | `codex` | `local` (`SLATE_BRAIN`).
+    /// Default brain backend name: `cursor` | `grok-4.5` | `grok-4.6` | `codex` | `local` (`SLATE_BRAIN`).
     pub brain_default: String,
     /// HTTP bind host (loopback only by default).
     pub bind: String,
@@ -62,16 +62,7 @@ pub fn load_config() -> EngineConfig {
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| DEFAULT_COMFY_BASE.to_string());
 
-    let packs_dir = env::var("SLATE_PACKS_DIR")
-        .ok()
-        .filter(|s| !s.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            env::current_dir()
-                .unwrap_or_else(|_| PathBuf::from("."))
-                .join("workflows")
-                .join("packs")
-        });
+    let packs_dir = slate_comfy::resolve_packs_dir();
 
     let brain_default = env::var("SLATE_BRAIN")
         .ok()

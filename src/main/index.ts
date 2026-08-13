@@ -14,6 +14,7 @@ import {
 import { startControlServer } from './control'
 import { extractFrames, mediaKind } from './ingest'
 import { analyzeAudio } from './audio'
+import { grokTtsStatus, renderGrokVo } from './grokTts'
 import * as engineBridge from './engineBridge'
 import type { BrainBackend, BrainRequest, Project } from '../shared/types'
 
@@ -24,15 +25,17 @@ function notifyProjectsChanged(): void {
 }
 
 function createWindow(): void {
+  const isMac = process.platform === 'darwin'
   win = new BrowserWindow({
     width: 1520,
     height: 940,
     minWidth: 1100,
     minHeight: 680,
-    title: 'Slate',
+    title: 'Agent-Slate',
     icon: join(__dirname, '../../build/icon.png'),
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 18, y: 16 },
+    ...(isMac
+      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 18, y: 16 } }
+      : { autoHideMenuBar: false }),
     backgroundColor: '#0c0d10',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -53,62 +56,77 @@ function createWindow(): void {
   })
 }
 
-app.setName('Slate')
+app.setName('Agent-Slate')
 
 app.setAboutPanelOptions({
-  applicationName: 'Slate',
+  applicationName: 'Agent-Slate',
   applicationVersion: app.getVersion(),
   copyright: 'Apache-2.0 · Created by Sam Wasserman · Maintained by thcabq352',
   credits:
-    'The prompt studio for AI filmmaking.\nPlan · Direct · Compile\n\nOriginal: Sam Wasserman (wassermanproductions.com)\nThis fork: thcabq352 (github.com/thcabq352/slate)',
+    'Agent-Slate — prompt studio + local film factory.\nPlan · Direct · Compile · Generate\n\nOriginal Slate: Sam Wasserman (wassermanproductions.com)\nThis fork: thcabq352 (github.com/thcabq352/Agent-Slate)',
   iconPath: join(__dirname, '../../build/icon.png')
 })
 
 function buildMenu(): void {
+  const isMac = process.platform === 'darwin'
   const openHelp = (): void => {
     win?.webContents.send('help:open')
     win?.show()
   }
-  const template: Electron.MenuItemConstructorOptions[] = [
+  const openAbout = (): void => {
+    win?.webContents.send('about:open')
+    win?.show()
+  }
+  const helpItem: Electron.MenuItemConstructorOptions = {
+    label: 'Agent-Slate Help',
+    accelerator: 'CmdOrCtrl+/',
+    click: openHelp
+  }
+  const aboutItem: Electron.MenuItemConstructorOptions = {
+    label: 'About Agent-Slate',
+    click: openAbout
+  }
+  const links: Electron.MenuItemConstructorOptions[] = [
     {
-      label: 'Slate',
+      label: 'Support Sam Wasserman on Ko-fi ♥',
+      click: () => void shell.openExternal('https://ko-fi.com/samwasserman')
+    },
+    {
+      label: 'wassermanproductions.com',
+      click: () => void shell.openExternal('https://wassermanproductions.com')
+    },
+    { label: 'wasserman.ai', click: () => void shell.openExternal('https://wasserman.ai') }
+  ]
+
+  const template: Electron.MenuItemConstructorOptions[] = []
+  if (isMac) {
+    template.push({
+      label: 'Agent-Slate',
       submenu: [
-        {
-          label: 'About Slate',
-          click: () => {
-            win?.webContents.send('about:open')
-            win?.show()
-          }
-        },
+        aboutItem,
         { type: 'separator' },
-        { label: 'Slate Help', accelerator: 'CmdOrCtrl+/', click: openHelp },
+        helpItem,
         { type: 'separator' },
-        { label: 'Support Slate on Ko-fi ♥', click: () => void shell.openExternal('https://ko-fi.com/samwasserman') },
-        { label: 'wassermanproductions.com', click: () => void shell.openExternal('https://wassermanproductions.com') },
-        { label: 'wasserman.ai', click: () => void shell.openExternal('https://wasserman.ai') },
+        ...links,
         { type: 'separator' },
-        { role: 'hide', label: 'Hide Slate' },
+        { role: 'hide', label: 'Hide Agent-Slate' },
         { role: 'hideOthers' },
         { role: 'unhide' },
         { type: 'separator' },
-        { role: 'quit', label: 'Quit Slate' }
+        { role: 'quit', label: 'Quit Agent-Slate' }
       ]
-    },
+    })
+  }
+  template.push(
     { role: 'fileMenu' },
     { role: 'editMenu' },
     { role: 'viewMenu' },
     { role: 'windowMenu' },
     {
       role: 'help',
-      submenu: [
-        { label: 'Slate Help', accelerator: 'CmdOrCtrl+?', click: openHelp },
-        { type: 'separator' },
-        { label: 'Support Slate on Ko-fi ♥', click: () => void shell.openExternal('https://ko-fi.com/samwasserman') },
-        { label: 'wassermanproductions.com', click: () => void shell.openExternal('https://wassermanproductions.com') },
-        { label: 'wasserman.ai', click: () => void shell.openExternal('https://wasserman.ai') }
-      ]
+      submenu: [helpItem, ...(isMac ? [] : [{ type: 'separator' as const }, aboutItem]), { type: 'separator' }, ...links]
     }
-  ]
+  )
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
@@ -284,6 +302,13 @@ ipcMain.handle('media:pickAudio', async () => {
 })
 
 ipcMain.handle('sound:analyze', (_e, path: string) => analyzeAudio(path))
+ipcMain.handle('sound:grokTtsStatus', () => grokTtsStatus())
+ipcMain.handle('sound:renderGrokVo', (_e, req: import('../shared/types').GrokVoRenderRequest) =>
+  renderGrokVo(req)
+)
+ipcMain.handle('sound:revealPath', (_e, path: string) => {
+  if (path) shell.showItemInFolder(path)
+})
 
 ipcMain.handle('clipboard:copy', (_e, text: string) => {
   clipboard.writeText(text)

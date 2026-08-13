@@ -71,7 +71,7 @@ async fn handle_known(method: &str, params: &Value, ctx: &EngineCtx) -> Result<V
             Ok(json!({
                 "protocolVersion": protocol_version,
                 "capabilities": { "tools": {} },
-                "serverInfo": { "name": "slate", "version": "0.1.0" }
+                "serverInfo": { "name": "slate", "version": env!("CARGO_PKG_VERSION") }
             }))
         }
         "tools/list" => Ok(json!({ "tools": tools::catalog() })),

@@ -1,7 +1,7 @@
-//! Engine First AD — conversational scene operator (Phase 3).
+//! Engine Factory AD — conversational scene operator for local generates.
 //!
-//! Plans and mutates projects via the same AdAction contract as the Electron First AD,
-//! with optional scene continuity book for downstream generate/judge.
+//! Same AdAction contract as the studio titlebar First AD, but a separate chat:
+//! continuity book + scene plan for Comfy. Tool id stays `slate_first_ad`.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -15,8 +15,9 @@ use crate::continuity::SceneContinuityContext;
 use crate::factory::resolve_brain_backend;
 use crate::tools::EngineCtx;
 
-const AD_SYSTEM: &str = r#"You are the First AD inside Slate (engine). The director talks about a scene;
-you reply briefly and emit actions only when intent is clear enough to act.
+const AD_SYSTEM: &str = r#"You are the Factory AD inside Agent-Slate's film-factory engine (◆ Agent dock).
+You are not the studio titlebar First AD — you plan continuity and a scene for local Comfy generates.
+The director talks about a scene; you reply briefly and emit actions only when intent is clear enough to act.
 
 Respond with ONLY JSON (no markdown fences):
 {
@@ -159,7 +160,7 @@ fn pick_scene_idx(project: &Project, focus_scene: Option<&str>) -> usize {
     0
 }
 
-/// Run one First AD conversational turn against a project.
+/// Run one Factory AD conversational turn against a project (`slate_first_ad`).
 pub async fn run_first_ad(ctx: &EngineCtx, args: FirstAdArgs) -> FirstAdResult {
     let mut project = match open_project(&args.project_id) {
         Ok(Some(p)) => p,
@@ -203,14 +204,15 @@ pub async fn run_first_ad(ctx: &EngineCtx, args: FirstAdArgs) -> FirstAdResult {
     // Health check for chosen backend
     let status = brain_status(None).await;
     let healthy = match backend {
-        Bb::Claude => status.claude.available,
+        Bb::Cursor => status.cursor.available,
+        Bb::Grok45 | Bb::Grok46 => status.grok.available || status.cursor.available,
         Bb::Codex => status.codex.available,
         Bb::Local => status.local.available,
     };
     if !healthy && !ctx.config.dry_run {
         return FirstAdResult {
             ok: false,
-            reply: "Brain offline — start Ollama/Claude/Codex or set a healthy brain.".into(),
+            reply: "Brain offline — start Ollama, run grok login (Grok Build) or cursor-agent login, or Codex — then retry.".into(),
             receipts: vec![],
             actions_applied: 0,
             scene_plan_summary: String::new(),
@@ -272,7 +274,7 @@ pub async fn run_first_ad(ctx: &EngineCtx, args: FirstAdArgs) -> FirstAdResult {
             reply: result
                 .error
                 .clone()
-                .unwrap_or_else(|| "First AD brain failed".into()),
+                .unwrap_or_else(|| "Factory AD brain failed".into()),
             receipts: vec![],
             actions_applied: 0,
             scene_plan_summary: String::new(),

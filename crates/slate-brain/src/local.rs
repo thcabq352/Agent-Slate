@@ -9,14 +9,20 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 /// Common localhost OpenAI-compat endpoints (same order as TS).
+/// Prefer `127.0.0.1` first — on Windows `localhost` is often IPv6 (`::1`)
+/// while Ollama/Comfy bind IPv4 only.
 const LOCAL_CANDIDATES: &[&str] = &[
-    "http://localhost:11434/v1", // Ollama
-    "http://localhost:1234/v1",  // LM Studio
-    "http://localhost:8000/v1",  // vLLM
-    "http://localhost:8080/v1",  // llama.cpp / KoboldCpp
+    "http://127.0.0.1:11434/v1", // Ollama (IPv4)
+    "http://localhost:11434/v1", // Ollama (name)
+    "http://127.0.0.1:1234/v1",  // LM Studio
+    "http://localhost:1234/v1",
+    "http://127.0.0.1:8000/v1", // vLLM
+    "http://localhost:8000/v1",
+    "http://127.0.0.1:8080/v1", // llama.cpp / KoboldCpp
+    "http://localhost:8080/v1",
 ];
 
-const PROBE_TIMEOUT: Duration = Duration::from_millis(1500);
+const PROBE_TIMEOUT: Duration = Duration::from_secs(4);
 
 /// Normalize a user or default endpoint to `http(s)://…/v1` (no trailing slash).
 pub fn normalize_endpoint(url: &str) -> String {
@@ -58,8 +64,36 @@ pub fn parse_chat_response(body: &str) -> Result<String, String> {
 fn http_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .timeout(Duration::from_secs(600))
+        .no_proxy()
         .build()
         .map_err(|e| e.to_string())
+}
+
+/// Parse `/v1/models` (`data[].id`) or Ollama `/api/tags` (`models[].name`).
+pub fn parse_model_ids(body: &Value) -> Vec<String> {
+    if let Some(arr) = body.get("data").and_then(|d| d.as_array()) {
+        return arr
+            .iter()
+            .filter_map(|m| m.get("id").and_then(|id| id.as_str()).map(|s| s.to_string()))
+            .collect();
+    }
+    if let Some(arr) = body.get("models").and_then(|d| d.as_array()) {
+        return arr
+            .iter()
+            .filter_map(|m| {
+                m.get("name")
+                    .or_else(|| m.get("model"))
+                    .and_then(|id| id.as_str())
+                    .map(|s| s.to_string())
+            })
+            .collect();
+    }
+    Vec::new()
+}
+
+fn ollama_tags_url(openai_v1: &str) -> String {
+    let base = openai_v1.trim_end_matches('/').trim_end_matches("/v1");
+    format!("{base}/api/tags")
 }
 
 async fn probe_local(client: &reqwest::Client, endpoint: &str) -> Option<Vec<String>> {
@@ -71,20 +105,26 @@ async fn probe_local(client: &reqwest::Client, endpoint: &str) -> Option<Vec<Str
         .send()
         .await
         .ok()?;
-    if !res.status().is_success() {
+    if res.status().is_success() {
+        if let Ok(body) = res.json::<Value>().await {
+            let models = parse_model_ids(&body);
+            if !models.is_empty() || body.get("data").is_some() {
+                return Some(models);
+            }
+        }
+    }
+    // Ollama native tags — some builds answer /api/tags when /v1/models is slow/empty.
+    let tags = client
+        .get(ollama_tags_url(endpoint))
+        .timeout(PROBE_TIMEOUT)
+        .send()
+        .await
+        .ok()?;
+    if !tags.status().is_success() {
         return None;
     }
-    let body: Value = res.json().await.ok()?;
-    let models = body
-        .get("data")
-        .and_then(|d| d.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|m| m.get("id").and_then(|id| id.as_str()).map(|s| s.to_string()))
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-    Some(models)
+    let body: Value = tags.json().await.ok()?;
+    Some(parse_model_ids(&body))
 }
 
 /// Find a live local server: preferred endpoint first, else common ports.

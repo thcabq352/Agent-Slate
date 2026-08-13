@@ -26,20 +26,20 @@ You do **not** need to open-source your own proprietary additions if you only us
 | Role | Name | Notes |
 |------|------|--------|
 | Original author & copyright (upstream) | Sam Wasserman | Created Slate; see upstream [wassermanproductions/slate](https://github.com/wassermanproductions/slate) |
-| Maintainer of **this** fork | **thcabq352** | Issues/PRs/releases for [thcabq352/slate](https://github.com/thcabq352/slate); modifications and new components in this fork |
+| Maintainer of **this** fork | **thcabq352** | Issues/PRs/releases for [thcabq352/Agent-Slate](https://github.com/thcabq352/Agent-Slate); modifications and new components in this fork |
 
 Supporting Sam’s work (optional): [Ko-fi](https://ko-fi.com/samwasserman) · [GitHub Sponsors](https://github.com/sponsors/wassermanproductions).
 
 ## Upstream vs this fork
 
-| | Upstream | This fork |
+| | Upstream Slate | Agent-Slate |
 |--|----------|-----------|
-| Repo | https://github.com/wassermanproductions/slate | https://github.com/thcabq352/slate |
-| Focus | Original Electron prompt studio | Same base + maintained fork (e.g. Rust film-factory engine, Hermes/Comfy docs) |
+| Repo | https://github.com/wassermanproductions/slate | https://github.com/thcabq352/Agent-Slate |
+| Focus | Original Electron prompt studio (macOS, Claude Code) | Same studio + Windows/Linux, Grok/Cursor brains, optional Rust film factory |
 
 ## In-app credits
 
-About and Help surfaces must continue to credit **Sam Wasserman** as creator. This fork also shows **thcabq352** as maintainer so users know where to file issues for this repository.
+About and Help surfaces must continue to credit **Sam Wasserman** as creator. This fork also shows **thcabq352** as maintainer so users know where to file issues for this repository. Product handbook: [GUIDE.md](GUIDE.md).
 
 ## Citation
 

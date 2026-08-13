@@ -6,6 +6,7 @@ import { promises as fs } from 'fs'
 import { join, extname } from 'path'
 import { createHash } from 'crypto'
 import { cacheDir } from './projects'
+import { ffmpegBin } from './ffmpeg'
 
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.tif', '.tiff', '.bmp', '.heic'])
 const VIDEO_EXT = new Set(['.mp4', '.mov', '.m4v', '.webm', '.mkv', '.avi', '.mxf'])
@@ -14,7 +15,7 @@ const MAX_FRAMES = 16
 
 function run(cmd: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(cmd, args, { timeout: 120000, maxBuffer: 32 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile(cmd, args, { timeout: 120000, maxBuffer: 32 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
       if (err) reject(new Error(stderr.toString().slice(-400) || err.message))
       else resolve(stdout.toString())
     })
@@ -23,7 +24,7 @@ function run(cmd: string, args: string[]): Promise<string> {
 
 export async function ffmpegAvailable(): Promise<boolean> {
   try {
-    await run('ffmpeg', ['-version'])
+    await run(ffmpegBin(), ['-version'])
     return true
   } catch {
     return false
@@ -50,7 +51,7 @@ export async function extractFrames(projectId: string, videoPath: string): Promi
   if (existing.length > 0) return existing.map((f) => join(outDir, f)).sort()
 
   // Pass 1 — scene changes.
-  await run('ffmpeg', [
+  await run(ffmpegBin(), [
     '-i', videoPath,
     '-vf', `select='gt(scene,0.28)',scale=768:-2`,
     '-vsync', 'vfr',
@@ -63,7 +64,7 @@ export async function extractFrames(projectId: string, videoPath: string): Promi
 
   // Pass 2 — if the clip has few hard cuts, sample evenly (one frame every 2s).
   if (frames.length < 4) {
-    await run('ffmpeg', [
+    await run(ffmpegBin(), [
       '-i', videoPath,
       '-vf', 'fps=1/2,scale=768:-2',
       '-frames:v', String(MAX_FRAMES - frames.length),

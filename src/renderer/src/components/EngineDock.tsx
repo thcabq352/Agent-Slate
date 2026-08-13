@@ -1,4 +1,4 @@
-// Hybrid agent dock — engine, film factory, music compile, First AD, quality review.
+// Hybrid agent dock — engine, film factory, music compile, Factory AD, quality review.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useProject } from '../stores/project'
@@ -49,7 +49,7 @@ type FactoryResultView = {
 }
 
 export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.Element {
-  const { project, refreshMetas, open } = useProject()
+  const { project, refreshMetas, open, mutate, persist, selectShot } = useProject()
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
@@ -67,6 +67,7 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
   const [musicTarget, setMusicTarget] = useState<'generic' | 'suno'>('generic')
   const [compiledMusic, setCompiledMusic] = useState<CompiledMusicView[]>([])
   const [factoryWatch, setFactoryWatch] = useState(false)
+  const [circledOnly, setCircledOnly] = useState(false)
   const factorySawActive = useRef(false)
 
   const refresh = useCallback(async (): Promise<void> => {
@@ -75,16 +76,16 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
       setHealth(h)
       const s = await window.slate.engineStatus()
       setStatus(s)
-      try {
-        const listed = (await window.slate.engineInvoke('slate_list_packs', {})) as PackRow[]
-        if (Array.isArray(listed)) setPacks(listed)
-      } catch {
-        /* packs optional */
+      if (h.engine) {
+        setErr(null)
+        try {
+          const listed = (await window.slate.engineInvoke('slate_list_packs', {})) as PackRow[]
+          if (Array.isArray(listed)) setPacks(listed)
+        } catch {
+          /* packs optional */
+        }
       }
-      setErr(null)
     } catch (e) {
-      setHealth(null)
-      setStatus(null)
       setErr(e instanceof Error ? e.message : String(e))
     }
   }, [])
@@ -93,6 +94,22 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
     void refresh()
     const t = setInterval(() => void refresh(), 2500)
     return () => clearInterval(t)
+  }, [refresh])
+
+  const didAutoConnect = useRef(false)
+  useEffect(() => {
+    if (didAutoConnect.current) return
+    didAutoConnect.current = true
+    void (async () => {
+      try {
+        const r = await window.slate.engineEnsure()
+        if (r.ok) setMsg(r.message)
+        else setErr(r.message)
+        await refresh()
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : String(e))
+      }
+    })()
   }, [refresh])
 
   useEffect(() => {
@@ -132,6 +149,33 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
     } finally {
       setBusy(false)
     }
+  }
+
+  const latestTakeRef = (): {
+    sceneId: string
+    shotId: string
+    shotName: string
+    takeId: string
+  } | null => {
+    if (!project) return null
+    let best: { sceneId: string; shotId: string; shotName: string; takeId: string; loggedAt: string } | null =
+      null
+    for (const sc of project.scenes) {
+      for (const sh of sc.shots) {
+        for (const t of sh.takes) {
+          if (!best || t.loggedAt >= best.loggedAt) {
+            best = {
+              sceneId: sc.id,
+              shotId: sh.id,
+              shotName: sh.name,
+              takeId: t.id,
+              loggedAt: t.loggedAt
+            }
+          }
+        }
+      }
+    }
+    return best
   }
 
   const latestTakePath = (): string | null => {
@@ -195,8 +239,47 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
     }
   }
 
-  const approve = (): void => {
-    setMsg('Human approved — take kept as-is.')
+  const approve = async (): Promise<void> => {
+    if (!project) {
+      setErr('Open a project first.')
+      return
+    }
+    const loc = latestTakeRef()
+    if (!loc) {
+      setErr('No take to circle — generate or log a take first.')
+      return
+    }
+    setBusy(true)
+    setErr(null)
+    try {
+      mutate((p) => {
+        for (const sc of p.scenes) {
+          for (const sh of sc.shots) {
+            const t = sh.takes.find((x) => x.id === loc.takeId)
+            if (!t) continue
+            t.rating = 'circled'
+            if (!t.notes.toLowerCase().includes('human approved')) {
+              t.notes = t.notes.trim() ? `${t.notes.trim()} | human approved` : 'human approved'
+            }
+            return
+          }
+        }
+      })
+      await persist()
+      if (health?.engine) {
+        await window.slate.engineInvoke('slate_circle_take', {
+          projectId: project.id,
+          takeId: loc.takeId,
+          shotId: loc.shotId
+        })
+      }
+      selectShot(loc.sceneId, loc.shotId)
+      setMsg(`Circled ${loc.shotName} · ${loc.takeId}`)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
   }
 
   const retryShot = async (): Promise<void> => {
@@ -252,7 +335,7 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
       setAdReply(out.reply || '…')
       setAdReceipts(out.receipts || [])
       setAdInput('')
-      setMsg(out.scenePlanSummary || 'First AD turn complete')
+      setMsg(out.scenePlanSummary || 'Factory AD turn complete')
       await refresh()
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
@@ -268,7 +351,7 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
     try {
       const out = (await window.slate.engineInvoke('slate_assemble', {
         projectId: project.id,
-        circledOnly: false
+        circledOnly
       })) as { ok?: boolean; path?: string; clipCount?: number; error?: string }
       if (out.path) {
         setMsg(`Cut assembled (${out.clipCount ?? '?'} clips): ${out.path}`)
@@ -295,7 +378,7 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
       setCompiledMusic(rows)
       setMsg(
         rows.length === 0
-          ? 'No music cues on this project — add one in Sound or ask the First AD.'
+          ? 'No music cues on this project — add one in Sound or ask the Factory AD.'
           : `Compiled ${rows.length} cue${rows.length === 1 ? '' : 's'} (${musicTarget})`
       )
     } catch (e) {
@@ -356,13 +439,15 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
 
   const visionReady = health?.vision?.ready
   const comfyOk = health?.comfy?.ok
+  const engineOk = Boolean(health?.engine)
+  const ffmpegOk = Boolean(health?.ffmpeg?.ok)
 
   return (
     <div className="engine-dock">
       <div className="engine-dock-head">
         <div>
           <div className="engine-dock-title">Agent dock</div>
-          <div className="engine-dock-sub">Engine · Factory · Music · First AD · Quality</div>
+          <div className="engine-dock-sub">Engine · Factory · Music · Factory AD · Quality</div>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={onClose}>
           Close
@@ -373,16 +458,31 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
         <section className="engine-section">
           <div className="engine-section-title">Engine</div>
           <div className="engine-pills">
+            <span className="engine-pill" data-ok={engineOk ? '1' : '0'}>
+              Engine {engineOk ? 'up' : 'offline'}
+            </span>
             <span className="engine-pill" data-ok={comfyOk ? '1' : '0'}>
               Comfy {comfyOk ? 'ok' : 'down'}
             </span>
             <span className="engine-pill" data-ok={visionReady ? '1' : '0'}>
               VL {visionReady ? health?.vision?.model || 'ready' : 'not ready'}
             </span>
+            <span className="engine-pill" data-ok={ffmpegOk ? '1' : '0'}>
+              ffmpeg {ffmpegOk ? 'ok' : 'missing'}
+            </span>
             <span className="engine-pill" data-ok={status?.active ? '1' : '0'}>
               {status?.active ? `busy: ${status.step}` : 'idle'}
             </span>
           </div>
+          {(health?.comfy?.error && !comfyOk) ||
+          (health?.vision?.hint && !visionReady) ||
+          (health?.ffmpeg?.hint && !ffmpegOk) ? (
+            <div className="engine-msg">
+              {!comfyOk && health?.comfy?.error ? <div>{health.comfy.error}</div> : null}
+              {!visionReady && health?.vision?.hint ? <div>{health.vision.hint}</div> : null}
+              {!ffmpegOk && health?.ffmpeg?.hint ? <div>{health.ffmpeg.hint}</div> : null}
+            </div>
+          ) : null}
           <div className="engine-actions">
             <button className="btn btn-sm" disabled={busy} onClick={() => void ensure()}>
               Connect / start engine
@@ -408,11 +508,14 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
         </section>
 
         <section className="engine-section">
-          <div className="engine-section-title">First AD (engine)</div>
+          <div className="engine-section-title">Factory AD</div>
+          <div className="engine-section-hint">
+            Engine operator — continuity and a scene plan for generates. Not ✦ First AD.
+          </div>
           <textarea
             className="engine-ad-input"
             rows={3}
-            placeholder="Tell the AD what to set up…"
+            placeholder="e.g. four stills of the rooftop chase, lock Kaia's coat, then I2V the hero"
             value={adInput}
             onChange={(e) => setAdInput(e.target.value)}
             disabled={busy || !project}
@@ -422,7 +525,7 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
             disabled={busy || !project || !adInput.trim()}
             onClick={() => void sendFirstAd()}
           >
-            Run First AD turn
+            Run Factory AD
           </button>
           {adReply && <div className="engine-ad-reply">{adReply}</div>}
           {adReceipts.length > 0 && (
@@ -491,6 +594,15 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
           >
             Assemble cut
           </button>
+          <label className="engine-msg" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={circledOnly}
+              onChange={(e) => setCircledOnly(e.target.checked)}
+              disabled={busy || !project}
+            />
+            Circled takes only
+          </label>
           {(factoryWatch || status?.active) && (
             <div className="engine-plan">
               <b>{status?.step || 'starting'}</b>
@@ -562,7 +674,7 @@ export default function EngineDock({ onClose }: { onClose(): void }): React.JSX.
             <button className="btn btn-sm" disabled={busy || !project} onClick={() => void judgeLatest()}>
               Judge latest take
             </button>
-            <button className="btn btn-sm" disabled={busy} onClick={approve}>
+            <button className="btn btn-sm" disabled={busy || !project} onClick={() => void approve()} title="Circle the latest take (same ⭕ as Deliver)">
               Approve
             </button>
             <button className="btn btn-sm" disabled={busy || !project} onClick={() => void retryShot()}>

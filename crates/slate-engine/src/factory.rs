@@ -12,7 +12,7 @@
 //! 4. Per-shot sectioned prompts
 //! 5. compile + generate (existing Comfy path)
 //!
-//! Live requires one of claude / codex / local. On mid-step brain failure the
+//! Live requires one of cursor / grok-4.5 / grok-4.6 / codex / local. On mid-step brain failure the
 //! factory retries once (schema nudge), then falls back to stub for that step
 //! so partial projects still generate when possible.
 
@@ -538,31 +538,32 @@ fn project_takes_dir(project_id: &str, shot_id: &str) -> PathBuf {
 /// Resolve preferred brain: explicit arg, else `config.brain_default` (local default).
 pub fn resolve_brain_backend(args: &FilmFactoryArgs, config: &EngineConfig) -> Bb {
     match args.brain {
-        Some(BrainBackend::Claude) => Bb::Claude,
-        Some(BrainBackend::Codex) => Bb::Codex,
-        Some(BrainBackend::Local) => Bb::Local,
-        None => match config.brain_default.to_lowercase().as_str() {
-            "claude" => Bb::Claude,
-            "codex" => Bb::Codex,
-            _ => Bb::Local,
-        },
+        Some(b) => domain_to_brain(b),
+        None => Bb::parse(&config.brain_default).unwrap_or(Bb::Local),
+    }
+}
+
+fn domain_to_brain(b: BrainBackend) -> Bb {
+    match b {
+        BrainBackend::Cursor => Bb::Cursor,
+        BrainBackend::Grok45 => Bb::Grok45,
+        BrainBackend::Grok46 => Bb::Grok46,
+        BrainBackend::Codex => Bb::Codex,
+        BrainBackend::Local => Bb::Local,
     }
 }
 
 fn backend_available(status: &BrainStatus, backend: Bb) -> bool {
     match backend {
-        Bb::Claude => status.claude.available,
+        Bb::Cursor => status.cursor.available,
+        Bb::Grok45 | Bb::Grok46 => status.grok.available || status.cursor.available,
         Bb::Codex => status.codex.available,
         Bb::Local => status.local.available,
     }
 }
 
 fn backend_label(backend: Bb) -> &'static str {
-    match backend {
-        Bb::Claude => "claude",
-        Bb::Codex => "codex",
-        Bb::Local => "local",
-    }
+    backend.as_str()
 }
 
 /// Choose stub vs live. Stub when dry-run, or preferred brain not healthy.
@@ -585,7 +586,7 @@ async fn select_planner(
     }
 
     warnings.push(format!(
-        "brain {} not available; using stub planner (live requires claude/codex/local healthy)",
+        "brain {} not available; using stub planner (live requires cursor/grok/codex/local healthy)",
         backend_label(preferred)
     ));
     (true, None, warnings)
@@ -817,6 +818,20 @@ pub async fn generate_shot_take(
 
         let (width, height) = canvas_for_pack(pack_id, compiled.width, compiled.height);
 
+        let (duration_sec, fps) = {
+            let shot = project
+                .scenes
+                .get(scene_idx)
+                .and_then(|s| s.shots.get(shot_idx))
+                .ok_or_else(|| "shot not found".to_string())?;
+            (
+                shot.spec
+                    .duration_sec
+                    .unwrap_or(project.defaults.duration_sec),
+                shot.spec.fps.unwrap_or(project.defaults.fps),
+            )
+        };
+
         let mut values: HashMap<String, Value> = HashMap::new();
         values.insert("positive".into(), json!(compiled.positive));
         values.insert("negative".into(), json!(compiled.negative));
@@ -826,6 +841,10 @@ pub async fn generate_shot_take(
         values.insert("seed".into(), json!(rand::random::<u64>() % 1_000_000_000));
 
         if let Ok((manifest, _)) = load_pack(&ctx.config.packs_dir, pack_id) {
+            if let Some(n) = frames_for_pack(&manifest, duration_sec, fps) {
+                values.insert("frames".into(), json!(n));
+                receipts.push(format!("• frames: {n} ({duration_sec}s @ {fps} fps)"));
+            }
             if manifest.inputs.contains_key("image") {
                 let kf = ensure_keyframe(
                     ctx,
@@ -1059,7 +1078,7 @@ pub async fn run_film_factory(ctx: &EngineCtx, args: FilmFactoryArgs) -> FilmFac
         }
         if let Some(b) = live_backend {
             receipts.push(format!(
-                "✓ brain: {} (live LLM path; requires claude/codex/local)",
+                "✓ brain: {} (live LLM path; requires cursor/grok/codex/local)",
                 backend_label(b)
             ));
         } else {
@@ -1529,6 +1548,39 @@ pub(crate) fn canvas_for_pack(pack_id: &str, width: u32, height: u32) -> (u32, u
     }
 }
 
+/// LTX EmptyLTXVLatentVideo length is 8n+1 (min 9).
+pub(crate) fn ltx_frame_count(n: u32) -> u32 {
+    let n = n.max(1);
+    let k = ((n.saturating_sub(1) as f64) / 8.0).round() as u32;
+    (k * 8 + 1).max(9)
+}
+
+/// Map shot duration × fps onto the pack `frames` input, clamped to pack max.
+/// Video packs snap to LTX 8n+1. Still packs with no `frames` input return None.
+pub(crate) fn frames_for_pack(
+    manifest: &slate_comfy::PackManifest,
+    duration_sec: f64,
+    fps: f64,
+) -> Option<u32> {
+    if !manifest.inputs.contains_key("frames") {
+        return None;
+    }
+    let fps = if fps > 0.0 { fps } else { 24.0 };
+    let mut sec = duration_sec.max(1.0 / fps);
+    if let Some(max) = manifest.limits.max_duration_sec {
+        if max > 0.0 {
+            sec = sec.min(max);
+        }
+    }
+    let raw = (sec * fps).round().max(1.0) as u32;
+    let n = if manifest.modality.eq_ignore_ascii_case("video") {
+        ltx_frame_count(raw)
+    } else {
+        raw
+    };
+    Some(n)
+}
+
 fn comfy_path_string(p: &Path) -> String {
     p.display().to_string().replace('\\', "/")
 }
@@ -1944,6 +1996,28 @@ mod tests {
     }
 
     #[test]
+    fn ltx_frame_count_snaps_to_8n_plus_1() {
+        assert_eq!(ltx_frame_count(48), 49);
+        assert_eq!(ltx_frame_count(24), 25);
+        assert_eq!(ltx_frame_count(192), 193);
+        assert_eq!(ltx_frame_count(49), 49);
+        assert_eq!(ltx_frame_count(1), 9);
+    }
+
+    #[test]
+    fn frames_for_pack_uses_duration_not_graph_default() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../workflows/packs");
+        let video = slate_comfy::load_manifest(&root.join("default-video/manifest.json")).unwrap();
+        assert_eq!(frames_for_pack(&video, 2.0, 24.0), Some(49));
+        assert_eq!(frames_for_pack(&video, 8.0, 24.0), Some(193));
+        assert_eq!(frames_for_pack(&video, 1.0, 24.0), Some(25));
+        // Pack max_duration_sec is 8 — 30s must clamp, not stay at 49.
+        assert_eq!(frames_for_pack(&video, 30.0, 24.0), Some(193));
+        let still = slate_comfy::load_manifest(&root.join("default-still/manifest.json")).unwrap();
+        assert_eq!(frames_for_pack(&still, 8.0, 24.0), None);
+    }
+
+    #[test]
     fn resolve_brain_uses_config_when_args_none() {
         let args = FilmFactoryArgs {
             brief: "x".into(),
@@ -1956,7 +2030,7 @@ mod tests {
             data_dir: PathBuf::from("."),
             comfy_base_url: "http://127.0.0.1:8188".into(),
             packs_dir: PathBuf::from("packs"),
-            brain_default: "claude".into(),
+            brain_default: "cursor".into(),
             bind: "127.0.0.1".into(),
             dry_run: false,
             judge_model: slate_brain::DEFAULT_JUDGE_MODEL.into(),
@@ -1964,7 +2038,13 @@ mod tests {
             judge_pass_threshold: 0.7,
             judge_max_retries: 2,
         };
-        assert_eq!(resolve_brain_backend(&args, &config), Bb::Claude);
+        assert_eq!(resolve_brain_backend(&args, &config), Bb::Cursor);
+        config.brain_default = "claude".into();
+        assert_eq!(resolve_brain_backend(&args, &config), Bb::Cursor);
+        config.brain_default = "grok-4.5".into();
+        assert_eq!(resolve_brain_backend(&args, &config), Bb::Grok45);
+        config.brain_default = "grok-4.6".into();
+        assert_eq!(resolve_brain_backend(&args, &config), Bb::Grok46);
         config.brain_default = "codex".into();
         assert_eq!(resolve_brain_backend(&args, &config), Bb::Codex);
         config.brain_default = "local".into();

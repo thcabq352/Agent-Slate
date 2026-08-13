@@ -1,6 +1,6 @@
 # Slate Rust Film Factory Implementation Plan
 
-> **Status 2026-08-13:** V1 of this plan is **done**, plus later follow-ups: I2V / FLF2V packs, video-frame VL judge, `slate_assemble`. Checkboxes below are historical. See [`docs/STATUS.md`](../../STATUS.md). Still out of scope here: multi-scene, music audio, IC-LoRA.
+> **Status 2026-08-13 (v0.3.2):** V1 of this plan is **done**. Do **not** implement Claude Code or `control.json` from the task list below (historical). Shipped: I2V / FLF2V packs, video-frame VL judge, `slate_assemble`, Grok/Cursor brains, split `electron-control.json` / `engine-control.json`. See [`docs/STATUS.md`](../../STATUS.md). Still out of scope: multi-scene, music audio, IC-LoRA.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

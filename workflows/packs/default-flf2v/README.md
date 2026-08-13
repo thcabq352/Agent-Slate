@@ -1,6 +1,6 @@
 # default-flf2v pack
 
-LTX 2.3 distilled **first + last frame → video** (`LTXVAddGuide` at 0 and −1, then `LTXVCropGuides`).
+LTX 2.3 distilled **first + last frame → video** (`LTXVAddGuide` at 0 and −1, then `LTXVCropGuides`). Agent-Slate pack. Index: [../README.md](../README.md) · [docs/STATUS.md](../../../docs/STATUS.md).
 
 | Logical | Node | Field |
 |---------|------|--------|

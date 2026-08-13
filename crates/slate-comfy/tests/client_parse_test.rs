@@ -1,6 +1,6 @@
 //! Unit tests for history output parsing (no live Comfy required).
 
-use slate_comfy::collect_output_files;
+use slate_comfy::{collect_output_files, collect_output_files_preferring};
 
 #[test]
 fn collect_output_files_from_history_shape() {
@@ -66,4 +66,28 @@ fn collect_output_files_savevideo_uses_images_key() {
     let files = collect_output_files(&history);
     assert_eq!(files.len(), 1);
     assert_eq!(files[0].filename, "slate_video_00001_.mp4");
+}
+
+#[test]
+fn prefers_declared_output_node_over_preview() {
+    let history = serde_json::json!({
+        "outputs": {
+            "8": {
+                "images": [{ "filename": "preview.png", "subfolder": "", "type": "temp" }]
+            },
+            "90": {
+                "images": [{
+                    "filename": "slate_video_00001_.mp4",
+                    "subfolder": "",
+                    "type": "output"
+                }]
+            }
+        }
+    });
+    let all = collect_output_files(&history);
+    assert_eq!(all.len(), 2);
+    let media = collect_output_files_preferring(&history, Some("90"));
+    assert_eq!(media.len(), 1);
+    assert_eq!(media[0].filename, "slate_video_00001_.mp4");
+    assert_eq!(media[0].file_type, "output");
 }

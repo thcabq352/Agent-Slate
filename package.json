@@ -1,7 +1,8 @@
 {
-  "name": "slate",
+  "name": "agent-slate",
+  "productName": "Agent-Slate",
   "version": "0.3.2",
-  "description": "Slate — the prompt studio for AI filmmaking. Plan shots, direct coverage, keep continuity, and compile production-ready prompts for any image or video generator.",
+  "description": "Agent-Slate — fork of Slate, the prompt studio for AI filmmaking, plus a local film factory. Plan shots, direct coverage, keep continuity, compile prompts, and optionally generate with ComfyUI.",
   "main": "out/main/index.js",
   "author": "Sam Wasserman",
   "contributors": [
@@ -12,21 +13,29 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/thcabq352/slate.git"
+    "url": "https://github.com/thcabq352/Agent-Slate.git"
   },
-  "homepage": "https://github.com/thcabq352/slate",
+  "homepage": "https://github.com/thcabq352/Agent-Slate",
   "bugs": {
-    "url": "https://github.com/thcabq352/slate/issues"
+    "url": "https://github.com/thcabq352/Agent-Slate/issues"
   },
   "license": "Apache-2.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "start": "electron-vite preview",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "setup": "node scripts/setup.mjs --ffmpeg",
+    "setup:grok": "node scripts/setup.mjs --ffmpeg --grok",
+    "package:desktop": "node scripts/package-desktop.mjs",
+    "package:macos": "node scripts/package-macos.mjs",
+    "share:skill": "node scripts/package-skill.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.1",

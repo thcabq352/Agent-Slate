@@ -13,6 +13,7 @@ import type {
   StyleProfile,
   BeatDirection
 } from '../../../shared/types'
+import { normalizeBrain } from '../../../shared/types'
 import { uid } from '../stores/project'
 import profilesData from '../../../../data/model-profiles.json'
 import type { ModelProfile } from './compile'
@@ -115,7 +116,7 @@ const EDITOR_FORMAT = `PROMPT FORMAT — the app's editor uses sectioned prompts
 # Mood
 <the emotional register, rendered as visual language>`
 
-const CINEMA_SYSTEM = `You are the prompt-craft brain inside Slate, a professional prompt studio for filmmakers who generate images and video with AI models. You are an expert cinematographer, director, and prompt engineer. You write vivid, concrete, production-ready visual language — never vague adjectives, never filler like "high quality, 8k, masterpiece". Physical, photographable descriptions only. Respect every continuity fact you are given about characters, wardrobe, props, locations, lighting state, and time of day; if the user's request conflicts with continuity, follow the request and flag the conflict in one short line at the end prefixed with "CONTINUITY:".
+const CINEMA_SYSTEM = `You are the prompt-craft brain inside Agent-Slate, a professional prompt studio for filmmakers who generate images and video with AI models. You are an expert cinematographer, director, and prompt engineer. You write vivid, concrete, production-ready visual language — never vague adjectives, never filler like "high quality, 8k, masterpiece". Physical, photographable descriptions only. Respect every continuity fact you are given about characters, wardrobe, props, locations, lighting state, and time of day; if the user's request conflicts with continuity, follow the request and flag the conflict in one short line at the end prefixed with "CONTINUITY:".
 
 ${EDITOR_FORMAT}`
 
@@ -139,7 +140,7 @@ export async function runBrain(p: Project, opts: RunOpts): Promise<BrainResult> 
     tier: opts.tier ?? 'top',
     expectJson: opts.expectJson,
     images: opts.images,
-    backend: p.defaults.brain,
+    backend: normalizeBrain(p.defaults.brain),
     localEndpoint: p.defaults.localEndpoint,
     localModel: p.defaults.localModel
   }

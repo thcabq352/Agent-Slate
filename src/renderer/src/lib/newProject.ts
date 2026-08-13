@@ -12,7 +12,7 @@ export function newProjectShape(name: string): Project {
       fps: 24,
       durationSec: 8,
       targetModel: 'seedance-2',
-      brain: 'claude',
+      brain: 'cursor',
       localEndpoint: '',
       localModel: ''
     },

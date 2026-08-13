@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "slate-web",
+      "name": "agent-slate-web",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vite", "--config", "vite.web.config.ts"],
       "port": 5199

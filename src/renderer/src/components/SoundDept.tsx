@@ -1,6 +1,6 @@
 // Sound Department — Score (music cues) and Voice Casting, compiled per target.
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useProject, uid } from '../stores/project'
 import {
   MUSIC_PROFILES,
@@ -13,9 +13,11 @@ import {
   analyzeMusicRef,
   analyzeVoiceRef,
   blankCue,
-  blankVoice
+  blankVoice,
+  directGrokVo
 } from '../lib/sound'
 import type { MusicCue, VoiceSheet, AudioFingerprint } from '../../../shared/types'
+import { GROK_TTS_VOICES, pickGrokVoice } from '../../../shared/grokTts'
 
 /** Drop or pick an audio/video file → local acoustic fingerprint → brain style breakdown. */
 function AudioRefZone({
@@ -78,6 +80,7 @@ function AudioRefZone({
         )}
       </div>
       <input
+        aria-label="Reference hint"
         placeholder='Optional: what is it? — "vault-heist score", "70s radio DJ"'
         value={hint}
         onChange={(e) => setHint(e.target.value)}
@@ -85,6 +88,30 @@ function AudioRefZone({
       />
       {error && <div style={{ color: 'var(--danger)', fontSize: 11.5, marginTop: 4 }}>{error}</div>}
     </div>
+  )
+}
+
+function voFileSrc(path: string): string {
+  if (path.startsWith('file:')) return path
+  const n = path.replace(/\\/g, '/')
+  return /^[a-zA-Z]:/.test(n) ? `file:///${n}` : `file://${n}`
+}
+
+function GrokVoiceSelect({
+  value,
+  onChange
+}: {
+  value: string
+  onChange(id: string): void
+}): React.JSX.Element {
+  return (
+    <select value={value || 'eve'} onChange={(e) => onChange(e.target.value)} style={{ width: '100%' }}>
+      {GROK_TTS_VOICES.map((v) => (
+        <option key={v.id} value={v.id}>
+          Grok {v.label} — {v.hint}
+        </option>
+      ))}
+    </select>
   )
 }
 
@@ -427,6 +454,43 @@ function Voices(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const [target, setTarget] = useState(VOICE_PROFILES[0]?.id ?? '')
   const [compiled, setCompiled] = useState<(Compiled & { label: string }) | null>(null)
+  const [tts, setTts] = useState<{ ready: boolean; hint: string } | null>(null)
+
+  useEffect(() => {
+    void window.slate.grokTtsStatus().then(setTts)
+  }, [])
+
+  const speak = async (v: VoiceSheet): Promise<void> => {
+    const text = (v.voText || v.sampleLine || '').trim()
+    if (!text) {
+      setError('Write a sample line (or VO text) first.')
+      return
+    }
+    const voiceId = v.grokVoiceId || pickGrokVoice(v)
+    setBusy(`speak-${v.id}`)
+    setError(null)
+    try {
+      const out = await window.slate.renderGrokVo({
+        projectId: project.id,
+        voiceSheetId: v.id,
+        name: v.name,
+        text,
+        voiceId,
+        language: v.voLanguage || 'en'
+      })
+      const next: VoiceSheet = {
+        ...v,
+        grokVoiceId: voiceId,
+        voPath: out.path,
+        voText: v.voText || text
+      }
+      store.upsertVoice(next)
+      setEditing((cur) => (cur && cur.id === v.id ? { ...cur, ...next } : cur))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+    setBusy(null)
+  }
 
   const autoFill = async (): Promise<void> => {
     if (!describe.trim() || !editing) return
@@ -462,6 +526,21 @@ function Voices(): React.JSX.Element {
     setBusy(null)
     if (res.ok && res.json) setCompiled({ ...(res.json as Compiled), label: profile.label })
     else setError(res.error ?? 'Compile failed.')
+  }
+
+  const direct = async (): Promise<void> => {
+    if (!editing) return
+    const line = (editing.voText || editing.sampleLine || '').trim()
+    if (!line) {
+      setError('Write a sample line first.')
+      return
+    }
+    setBusy('direct')
+    setError(null)
+    const res = await directGrokVo(project, editing, line)
+    setBusy(null)
+    if (res.ok && res.text.trim()) setEditing({ ...editing, voText: res.text.trim() })
+    else setError(res.error ?? 'Direct failed.')
   }
 
   if (editing) {
@@ -513,10 +592,48 @@ function Voices(): React.JSX.Element {
         ).map(([key, label]) => (
           <div className="field" key={key}>
             <label>{label}</label>
-            <input value={editing[key] as string} onChange={(e) => set({ [key]: e.target.value } as Partial<VoiceSheet>)} />
+            <input value={(editing[key] as string) ?? ''} onChange={(e) => set({ [key]: e.target.value } as Partial<VoiceSheet>)} />
           </div>
         ))}
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="grid-2">
+          <div className="field">
+            <label>Grok voice</label>
+            <GrokVoiceSelect
+              value={editing.grokVoiceId || pickGrokVoice(editing)}
+              onChange={(id) => set({ grokVoiceId: id })}
+            />
+          </div>
+          <div className="field">
+            <label>Language</label>
+            <select
+              value={editing.voLanguage || 'en'}
+              onChange={(e) => set({ voLanguage: e.target.value })}
+            >
+              <option value="en">English</option>
+              <option value="auto">Auto</option>
+            </select>
+          </div>
+        </div>
+        <div className="field">
+          <label>
+            VO text{' '}
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ textTransform: 'none', marginLeft: 6 }}
+              disabled={busy === 'direct' || !(editing.voText || editing.sampleLine).trim()}
+              onClick={() => void direct()}
+            >
+              {busy === 'direct' ? 'directing…' : '✦ Direct for Grok'}
+            </button>
+          </label>
+          <textarea
+            rows={4}
+            value={editing.voText ?? ''}
+            placeholder={editing.sampleLine || 'The line Grok will speak — tags like [pause] and <whisper>…</whisper> are allowed'}
+            onChange={(e) => set({ voText: e.target.value })}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button
             className="btn btn-key"
             disabled={!editing.name.trim()}
@@ -527,10 +644,29 @@ function Voices(): React.JSX.Element {
           >
             Save Voice
           </button>
+          <button
+            className="btn btn-sm"
+            disabled={
+              busy?.startsWith('speak') ||
+              tts?.ready === false ||
+              !(editing.voText || editing.sampleLine).trim()
+            }
+            onClick={() => void speak(editing)}
+          >
+            {busy === `speak-${editing.id}` ? 'Speaking…' : 'Speak with Grok'}
+          </button>
           <button className="btn btn-ghost" onClick={() => setEditing(null)}>
             Cancel
           </button>
         </div>
+        {editing.voPath && (
+          <div className="vo-take">
+            <audio controls src={voFileSrc(editing.voPath)} />
+            <button className="btn btn-ghost btn-sm" onClick={() => void window.slate.revealPath(editing.voPath!)}>
+              Show file
+            </button>
+          </div>
+        )}
       </div>
     )
   }
@@ -565,7 +701,7 @@ function Voices(): React.JSX.Element {
           }}
         />
         <div style={{ marginTop: 8 }}>
-          <label>Target</label>
+          <label>Prompt target (ElevenLabs / Hume / MiniMax)</label>
           <select value={target} onChange={(e) => setTarget(e.target.value)} style={{ width: '100%' }}>
             {VOICE_PROFILES.map((m) => (
               <option key={m.id} value={m.id}>
@@ -574,24 +710,41 @@ function Voices(): React.JSX.Element {
             ))}
           </select>
         </div>
+        {tts && (
+          <div className="engine-msg" style={{ marginTop: 8 }} data-ok={tts.ready ? '1' : '0'}>
+            {tts.ready ? "Grok TTS ready — Speak writes an MP3 into this project's vo/ folder." : tts.hint}
+          </div>
+        )}
         {error && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 6 }}>{error}</div>}
       </div>
       {voices.length === 0 && (
         <div className="empty" style={{ height: 'auto', padding: '30px 20px' }}>
-          <p>Cast the voices. Describe one — or link it to a character — and compile a voice-design prompt plus audition text for your voice tool.</p>
+          <p>
+            Cast a voice, write a sample line, then <b>Speak with Grok</b> to render actual VO audio.
+            Prompt → still compiles ElevenLabs / Hume / MiniMax paste-ins.
+          </p>
         </div>
       )}
       {voices.map((v) => (
         <div key={v.id} className="card">
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
             <b style={{ color: 'var(--ink-0)' }}>{v.name}</b>
-            <span className="row-meta">{[v.ageGender, v.accent].filter(Boolean).join(' · ')}</span>
+            <span className="row-meta">
+              {[v.ageGender, v.accent, v.grokVoiceId || pickGrokVoice(v)].filter(Boolean).join(' · ')}
+            </span>
           </div>
           <div style={{ fontSize: 12, color: 'var(--ink-2)', margin: '4px 0 8px' }}>
             {[v.timbre, v.texture].filter(Boolean).join(' · ').slice(0, 110)}
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button className="btn btn-sm btn-key" disabled={busy === v.id} onClick={() => void compile(v)}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-sm btn-key"
+              disabled={busy === `speak-${v.id}` || tts?.ready === false}
+              onClick={() => void speak(v)}
+            >
+              {busy === `speak-${v.id}` ? 'Speaking…' : 'Speak with Grok'}
+            </button>
+            <button className="btn btn-sm" disabled={busy === v.id} onClick={() => void compile(v)}>
               {busy === v.id ? 'Compiling…' : 'Prompt →'}
             </button>
             <button className="btn btn-sm" onClick={() => setEditing(v)}>
@@ -601,6 +754,14 @@ function Voices(): React.JSX.Element {
               ✕
             </button>
           </div>
+          {v.voPath && (
+            <div className="vo-take">
+              <audio controls src={voFileSrc(v.voPath)} />
+              <button className="btn btn-ghost btn-sm" onClick={() => void window.slate.revealPath(v.voPath!)}>
+                Show file
+              </button>
+            </div>
+          )}
         </div>
       ))}
       {compiled && <CompiledView c={compiled} onClose={() => setCompiled(null)} />}

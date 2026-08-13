@@ -2,10 +2,10 @@
 
 **Date:** 2026-08-11  
 **Status:** **Implemented (V1 shipped 2026-08-12).** This file is the original design. Current operator snapshot: [`docs/STATUS.md`](../../STATUS.md).  
-**Repo:** [thcabq352/slate](https://github.com/thcabq352/slate) (also pushed as Agent-Slate; Apache-2.0 — see NOTICE)  
+**Repo:** [thcabq352/Agent-Slate](https://github.com/thcabq352/Agent-Slate) (Apache-2.0 — see NOTICE)  
 **Approach:** A — Rust workflow engine beside Electron; Hermes Gateway as primary non-pro front  
 
-**Shipped vs this draft (2026-08-13):** `default-still`, `default-video`, **`default-i2v`**, **`default-flf2v`** are live. Electron Agent dock exists (spec PR8) with Run brief / Compile cues / Assemble cut. Hermes uses **blocking** `slate_film_factory` (timeout 1800s). Dock uses `background: true`. Video VL judge extracts a first frame. `slate_assemble` writes a cut. Not shipped: multi-scene, music audio render, IC-LoRA/lipsync.
+**Shipped vs this draft (2026-08-13, v0.3.2):** Do **not** implement Claude Code or `control.json` from this file. Brains are **cursor / grok-4.5 / grok-4.6 / codex / local**. Descriptors are `electron-control.json` / `engine-control.json`. `default-still`, `default-video`, **`default-i2v`**, **`default-flf2v`** are live. Electron Agent dock exists (spec PR8) with Run brief / Compile cues / Assemble cut. Hermes uses **blocking** `slate_film_factory` (timeout 1800s). Dock uses `background: true`. Video VL judge extracts a first frame. `slate_assemble` writes a cut. Not shipped: multi-scene, music audio render, IC-LoRA/lipsync.
 
 ---
 

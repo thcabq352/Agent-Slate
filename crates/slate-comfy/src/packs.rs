@@ -89,6 +89,64 @@ pub fn packs_dir_from_workspace() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../workflows/packs")
 }
 
+/// True when `dir` looks like `workflows/packs` (has a known pack manifest).
+pub fn is_packs_dir(dir: &Path) -> bool {
+    dir.join("default-still").join("manifest.json").is_file()
+        || dir.join("default-video").join("manifest.json").is_file()
+}
+
+/// Locate Comfy packs relative to the **engine binary**, not process cwd.
+///
+/// Order: `SLATE_PACKS_DIR` (if set) → walk up from `current_exe` looking for
+/// `workflows/packs` → cwd last (compat only).
+pub fn resolve_packs_dir() -> PathBuf {
+    resolve_packs_dir_from(
+        std::env::var("SLATE_PACKS_DIR").ok(),
+        std::env::current_exe().ok(),
+        std::env::current_dir().ok(),
+    )
+}
+
+/// Testable resolver. `env_override` wins when non-empty.
+pub fn resolve_packs_dir_from(
+    env_override: Option<String>,
+    current_exe: Option<PathBuf>,
+    cwd: Option<PathBuf>,
+) -> PathBuf {
+    if let Some(p) = env_override.filter(|s| !s.is_empty()) {
+        let pb = PathBuf::from(p);
+        return pb.canonicalize().unwrap_or(pb);
+    }
+
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Some(exe) = current_exe {
+        if let Some(mut dir) = exe.parent().map(Path::to_path_buf) {
+            for _ in 0..8 {
+                candidates.push(dir.join("workflows").join("packs"));
+                candidates.push(dir.join("packs"));
+                if !dir.pop() {
+                    break;
+                }
+            }
+        }
+    }
+    if let Some(cwd) = cwd {
+        candidates.push(cwd.join("workflows").join("packs"));
+        candidates.push(cwd.join("packs"));
+    }
+
+    for c in &candidates {
+        if is_packs_dir(c) {
+            return c.canonicalize().unwrap_or_else(|_| c.clone());
+        }
+    }
+
+    candidates
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| PathBuf::from("workflows/packs"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -113,5 +171,37 @@ mod tests {
             packs.iter().any(|p| p.id == "default-flf2v" && p.ready),
             "expected default-flf2v ready, got {packs:?}"
         );
+    }
+
+    #[test]
+    fn resolve_packs_prefers_exe_tree_over_cwd() {
+        let workspace = packs_dir_from_workspace()
+            .canonicalize()
+            .expect("workspace packs");
+        assert!(is_packs_dir(&workspace), "fixture packs missing: {workspace:?}");
+        // Fake exe under target/debug — file need not exist; we walk parents.
+        let repo = workspace
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("workflows/packs → repo");
+        let exe = repo.join("target").join("debug").join("slate-engine.exe");
+        let bogus_cwd = PathBuf::from("/definitely/not/the/repo");
+        let resolved = resolve_packs_dir_from(None, Some(exe), Some(bogus_cwd));
+        assert!(
+            is_packs_dir(&resolved),
+            "expected packs next to binary walk, got {}",
+            resolved.display()
+        );
+    }
+
+    #[test]
+    fn resolve_packs_env_override_wins() {
+        let workspace = packs_dir_from_workspace();
+        let resolved = resolve_packs_dir_from(
+            Some(workspace.display().to_string()),
+            Some(PathBuf::from("/tmp/slate-engine")),
+            Some(PathBuf::from("/")),
+        );
+        assert!(is_packs_dir(&resolved), "env override should find packs");
     }
 }

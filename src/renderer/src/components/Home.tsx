@@ -2,14 +2,16 @@ import React, { useState } from 'react'
 import { useProject } from '../stores/project'
 import brandArt from '../assets/brand.webp'
 import AboutModal from './AboutModal'
+import { homeBrainBanner } from '../lib/brainReady'
+import { helpShortcutLabel } from '../lib/platform'
 
-
-
-export default function Home(): React.JSX.Element {
+export default function Home({ onOpenHelp }: { onOpenHelp?: () => void }): React.JSX.Element {
   const { metas, create, open, remove, brain } = useProject()
   const [name, setName] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [showAbout, setShowAbout] = useState(false)
+
+  const banner = homeBrainBanner(brain)
 
   const submit = (): void => {
     const n = name.trim()
@@ -23,16 +25,30 @@ export default function Home(): React.JSX.Element {
     <div className="home">
       <div className="home-inner">
         <div className="home-hero">
-          <img className="home-brand" src={brandArt} alt="Slate — prompt studio for AI filmmaking" />
+          <img className="home-brand" src={brandArt} alt="Agent-Slate — prompt studio for AI filmmaking" />
           <p>
             Plan shots, direct coverage, spot your score, cast your voices, keep continuity — and
             compile production-ready prompts for any generator.
           </p>
-          {brain && !brain.claude.available && !brain.codex.available && (
-            <div className="brain-warning">
-              No local brain found. Install and sign in to Claude Code (or Codex CLI) — Slate uses
-              your existing subscription, no API keys.
+          <div className="home-paths">
+            <div className="home-path">
+              <b>1. Studio</b>
+              <span>Create a project, fill the Bible, write or generate shot prompts, compile, copy.</span>
             </div>
+            <div className="home-path">
+              <b>2. Brain</b>
+              <span>
+                grok login for Grok 4.5/4.6 (falls back to Cursor), cursor-agent login for Composer,
+                or a local model. Test from the titlebar pill.
+              </span>
+            </div>
+            <div className="home-path">
+              <b>3. Factory</b>
+              <span>Optional. ◆ Agent + ComfyUI for local takes. Not required to write prompts.</span>
+            </div>
+          </div>
+          {banner && (
+            <div className={banner.kind === 'ok' ? 'brain-ok' : 'brain-warning'}>{banner.text}</div>
           )}
         </div>
 
@@ -87,6 +103,8 @@ export default function Home(): React.JSX.Element {
                 ) : (
                   <button
                     className="btn btn-sm btn-ghost"
+                    aria-label="Delete project"
+                    title="Delete project"
                     onClick={(e) => {
                       e.stopPropagation()
                       setConfirmDelete(m.id)
@@ -101,8 +119,13 @@ export default function Home(): React.JSX.Element {
         )}
 
         <div className="home-foot">
+          {onOpenHelp && (
+            <button className="btn btn-ghost btn-sm" onClick={onOpenHelp}>
+              Help ({helpShortcutLabel()})
+            </button>
+          )}
           <button className="btn btn-ghost btn-sm" onClick={() => setShowAbout(true)}>
-            About Slate
+            About Agent-Slate
           </button>
         </div>
       </div>

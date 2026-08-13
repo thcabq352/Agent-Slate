@@ -1,9 +1,17 @@
 # Share
 
+Rebuild the zip after editing the skill:
+
+```bash
+npm run share:skill
+```
+
 | File | What to send |
 |------|----------------|
-| **`slate-film-factory.zip`** | Hermes / Grok skill (`SKILL.md` + `INSTALL.md`). No weights, no binary. |
+| **`slate-film-factory.zip`** | Hermes Skills Hub bundle (`SKILL.md` + `references/`). No weights, no binary. |
 
-Unzip to `~/.hermes/skills/slate-film-factory/` (or `%USERPROFILE%\.hermes\skills\…`). Then register `slate-engine mcp` with timeout **1800s**. See `INSTALL.md` inside the zip.
+Preferred: `hermes skills tap add thcabq352/Agent-Slate` then `hermes skills install slate-film-factory -y --category media`.
 
-Repo: https://github.com/thcabq352/slate
+Or install the zip as-is (do not unzip first): `hermes skills install share/slate-film-factory.zip -y --name slate-film-factory --category media`. Then `hermes mcp add slate -- <slate-engine> mcp` (timeout **1800s**; `.exe` on Windows). See `references/install.md` inside the skill.
+
+Repo: https://github.com/thcabq352/Agent-Slate · [docs/GUIDE.md](../docs/GUIDE.md)

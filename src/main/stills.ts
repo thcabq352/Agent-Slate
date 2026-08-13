@@ -10,12 +10,13 @@ import { createHash } from 'crypto'
 import { join, isAbsolute, basename } from 'path'
 import { homedir } from 'os'
 import type { CircledTake } from '../shared/types'
+import { ffmpegBin, ffmpegInstallHint } from './ffmpeg'
 
 const MAX_STILLS = 8
 
 function run(cmd: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    execFile(cmd, args, { timeout: 120000 }, (err, _out, stderr) =>
+    execFile(cmd, args, { timeout: 120000, windowsHide: true }, (err, _out, stderr) =>
       err ? reject(new Error(stderr?.slice(0, 400) || err.message)) : resolve()
     )
   })
@@ -25,10 +26,47 @@ export interface CircleTakePaths {
   recentsFile: string
 }
 
-export function defaultCircleTakePaths(): CircleTakePaths {
-  return {
-    recentsFile: join(homedir(), 'Library', 'Application Support', 'circle-take', 'recents.json')
+/** Circle Take writes recents.json in Electron userData (`app.getPath('userData')`). */
+export function circleTakeRecentsCandidates(): string[] {
+  const home = homedir()
+  const out: string[] = []
+  const add = (p?: string | null): void => {
+    if (p && !out.includes(p)) out.push(p)
   }
+  add(process.env.CIRCLE_TAKE_RECENTS || null)
+  add(join(home, 'Library', 'Application Support', 'circle-take', 'recents.json'))
+  add(join(home, 'Library', 'Application Support', 'Circle Take', 'recents.json'))
+  const roaming =
+    process.env.APPDATA ||
+    (process.platform === 'win32' ? join(home, 'AppData', 'Roaming') : null)
+  if (roaming) {
+    add(join(roaming, 'circle-take', 'recents.json'))
+    add(join(roaming, 'Circle Take', 'recents.json'))
+  }
+  const local =
+    process.env.LOCALAPPDATA ||
+    (process.platform === 'win32' ? join(home, 'AppData', 'Local') : null)
+  if (local) {
+    add(join(local, 'circle-take', 'recents.json'))
+    add(join(local, 'Circle Take', 'recents.json'))
+  }
+  add(join(home, '.config', 'circle-take', 'recents.json'))
+  add(join(home, '.config', 'Circle Take', 'recents.json'))
+  return out
+}
+
+export function resolveCircleTakeRecents(
+  candidates: string[] = circleTakeRecentsCandidates()
+): string {
+  return (
+    candidates.find((p) => existsSync(p)) ??
+    candidates[0] ??
+    join(homedir(), 'Library', 'Application Support', 'circle-take', 'recents.json')
+  )
+}
+
+export function defaultCircleTakePaths(): CircleTakePaths {
+  return { recentsFile: resolveCircleTakeRecents() }
 }
 
 interface CtakeTake {
@@ -112,7 +150,7 @@ export async function extractStills(
   if (outSec != null && outSec > 0) windowArgs.push('-to', String(outSec))
 
   // Pass 1 — scene changes inside the window.
-  await run('ffmpeg', [
+  await run(ffmpegBin(), [
     ...windowArgs,
     '-i', mediaPath,
     '-vf', "select='gt(scene,0.24)',scale=768:-2",
@@ -126,7 +164,7 @@ export async function extractStills(
 
   // Pass 2 — steady sampling when the clip cuts too little.
   if (frames.length < 4) {
-    await run('ffmpeg', [
+    await run(ffmpegBin(), [
       ...windowArgs,
       '-i', mediaPath,
       '-vf', 'fps=1,scale=768:-2',
@@ -138,7 +176,7 @@ export async function extractStills(
   }
 
   if (frames.length === 0) {
-    throw new Error('No frames could be extracted — is ffmpeg installed? (brew install ffmpeg)')
+    throw new Error(`No frames could be extracted — ${ffmpegInstallHint()}`)
   }
   return frames.sort().map((f) => join(outDir, f))
 }

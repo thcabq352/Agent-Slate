@@ -9,18 +9,22 @@ import { homedir } from 'os'
 import { randomBytes } from 'crypto'
 import { listProjects, openProject, saveProject, createProject } from './projects'
 import { brainStatus, detectLocal } from './brain'
-import type { BrainBackend, Project, Scene, Shot } from '../shared/types'
+import type { Project, Scene, Shot } from '../shared/types'
+import { BRAIN_BACKENDS, normalizeBrain } from '../shared/types'
 
 type Notify = () => void
 
 const token = randomBytes(24).toString('hex')
+
+/** Distinct from slate-engine's `engine-control.json` — last-writer-wins collision. */
+const CONTROL_APP = 'slate-electron'
 
 function descriptorPath(): string {
   const base =
     process.platform === 'win32'
       ? process.env.APPDATA || join(homedir(), 'AppData', 'Roaming')
       : join(homedir(), '.config')
-  return join(base, 'slate', 'control.json')
+  return join(base, 'slate', 'electron-control.json')
 }
 
 async function readBody(req: IncomingMessage): Promise<string> {
@@ -123,10 +127,11 @@ const tools: Record<string, (args: Record<string, unknown>, notify: Notify) => P
   async set_brain(args, notify) {
     const p = await openProject(String(args.projectId))
     if (!p) throw new Error('Project not found')
-    const brain = String(args.brain) as BrainBackend
-    if (!['claude', 'codex', 'local'].includes(brain)) {
-      throw new Error("brain must be one of: claude, codex, local")
+    const raw = String(args.brain)
+    if (!(BRAIN_BACKENDS as readonly string[]).includes(raw) && raw !== 'claude') {
+      throw new Error('brain must be one of: cursor, grok-4.5, grok-4.6, codex, local')
     }
+    const brain = normalizeBrain(raw)
     p.defaults.brain = brain
     if (args.endpoint !== undefined) p.defaults.localEndpoint = String(args.endpoint)
     if (args.model !== undefined) p.defaults.localModel = String(args.model)
@@ -138,9 +143,9 @@ const tools: Record<string, (args: Record<string, unknown>, notify: Notify) => P
 
 export function toolCatalog(): Array<{ name: string; description: string }> {
   return [
-    { name: 'list_projects', description: 'List Slate projects with scene/shot counts' },
-    { name: 'get_project', description: 'Get a full Slate project (args: projectId)' },
-    { name: 'create_project', description: 'Create a new Slate project (args: name)' },
+    { name: 'list_projects', description: 'List Agent-Slate projects with scene/shot counts' },
+    { name: 'get_project', description: 'Get a full Agent-Slate project (args: projectId)' },
+    { name: 'create_project', description: 'Create a new Agent-Slate project (args: name)' },
     { name: 'list_shots', description: 'List scenes and shots (args: projectId)' },
     { name: 'get_shot_prompt', description: 'Get a shot prompt + spec (args: projectId, shotId)' },
     { name: 'set_shot_prompt', description: 'Set a shot prompt, versioning the old one (args: projectId, shotId, prompt)' },
@@ -148,9 +153,9 @@ export function toolCatalog(): Array<{ name: string; description: string }> {
     { name: 'list_characters', description: 'List character sheets (args: projectId)' },
     { name: 'list_locations', description: 'List location sheets (args: projectId)' },
     { name: 'list_lookbook', description: 'List style profiles (args: projectId)' },
-    { name: 'brain_status', description: 'Report which brains are available: Claude Code, Codex, and any local model server' },
+    { name: 'brain_status', description: 'Report which brains are available: Grok Build, Cursor CLI, Codex, and any local model server' },
     { name: 'list_local_models', description: 'List models on the local OpenAI-compatible server (args: endpoint?)' },
-    { name: 'set_brain', description: 'Set a project brain: claude | codex | local (args: projectId, brain, endpoint?, model?)' }
+    { name: 'set_brain', description: 'Set a project brain: cursor | grok-4.5 | grok-4.6 | codex | local (args: projectId, brain, endpoint?, model?)' }
   ]
 }
 
@@ -193,7 +198,7 @@ export async function startControlServer(notify: Notify): Promise<void> {
   await fs.mkdir(join(desc, '..'), { recursive: true })
   await fs.writeFile(
     desc,
-    JSON.stringify({ v: 1, app: 'slate', port, token, pid: process.pid }, null, 2),
+    JSON.stringify({ v: 1, app: CONTROL_APP, port, token, pid: process.pid }, null, 2),
     { mode: 0o600 }
   )
 }

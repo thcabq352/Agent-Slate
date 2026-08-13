@@ -1,6 +1,6 @@
 # default-i2v pack
 
-LTX 2.3 distilled **image-to-video**. Factory generates a Flux keyframe (or reuses the last still / previous-shot frame) then animates it.
+LTX 2.3 distilled **image-to-video** for Agent-Slate. Factory generates a Flux keyframe (or reuses the last still / previous-shot frame) then animates it. Index: [../README.md](../README.md) · [docs/STATUS.md](../../../docs/STATUS.md).
 
 | Logical | Node | Field |
 |---------|------|--------|

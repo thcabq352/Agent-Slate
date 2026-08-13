@@ -13,6 +13,19 @@ fn tool_catalog_includes_health() {
     assert!(names.iter().any(|n| n == "slate_run_pack"));
     assert!(names.iter().any(|n| n == "slate_compile_music"));
     assert!(names.iter().any(|n| n == "slate_assemble"));
+    assert!(names.iter().any(|n| n == "slate_circle_take"));
+}
+
+#[test]
+fn first_ad_tool_describes_factory_ad() {
+    let tool = slate_engine::tools::catalog()
+        .into_iter()
+        .find(|t| t.name == "slate_first_ad")
+        .expect("slate_first_ad");
+    assert!(
+        tool.description.contains("Factory AD"),
+        "slate_first_ad should say Factory AD (keep the tool id)"
+    );
 }
 
 #[test]

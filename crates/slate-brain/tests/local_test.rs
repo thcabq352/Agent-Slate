@@ -23,6 +23,20 @@ fn parse_chat_response_surfaces_api_error() {
 }
 
 #[test]
+fn parse_model_ids_openai_and_ollama_tags() {
+    let openai = serde_json::json!({"data":[{"id":"qwen3.5:9b"},{"id":"llava:latest"}]});
+    assert_eq!(
+        slate_brain::local::parse_model_ids(&openai),
+        vec!["qwen3.5:9b", "llava:latest"]
+    );
+    let tags = serde_json::json!({"models":[{"name":"qwen3.5:9b","model":"qwen3.5:9b"}]});
+    assert_eq!(
+        slate_brain::local::parse_model_ids(&tags),
+        vec!["qwen3.5:9b"]
+    );
+}
+
+#[test]
 fn normalize_endpoint_adds_scheme_and_v1() {
     assert_eq!(
         slate_brain::local::normalize_endpoint("localhost:1234"),

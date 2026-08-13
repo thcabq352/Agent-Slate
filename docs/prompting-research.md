@@ -1,9 +1,6 @@
 # Prompting research — Seedance 2.0, MiniMax H3, FLUX 3
 
-Internal note. Records what the vendors actually publish about prompting these
-three video models, and what that changed in `data/model-profiles.json`.
-Checked 2026-08-04. Only the `seedance-2`, `minimax-h3` and `flux-3` profiles
-were touched.
+Internal note for **studio Deliver compile** (`data/model-profiles.json`). Not Comfy factory packs. Still current as of **2026-08-13** (v0.3.2) for those three profiles. Factory graphs live in `workflows/packs/`.
 
 Convention used throughout the profiles: a `null` limit or a `false` feature
 flag means *undocumented — do not rely on it*, not *confirmed absent*.

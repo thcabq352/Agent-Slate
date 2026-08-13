@@ -71,7 +71,7 @@ export default function ReferencesPanel(): React.JSX.Element {
           + Add images or clips
         </button>
         <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 6 }}>
-          Clips are broken into key frames locally (ffmpeg). Media stays where it lives — Slate links
+          Clips are broken into key frames locally (ffmpeg). Media stays where it lives — Agent-Slate links
           it, never copies it.
         </div>
         {error && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 6 }}>{error}</div>}
@@ -234,7 +234,8 @@ function StillsLibrary(): React.JSX.Element {
       {error && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 6 }}>{error}</div>}
       {scanned && sources.length === 0 && (
         <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 8 }}>
-          No circled takes found — circle takes in Circle Take, or add clips directly.
+          No circled takes found — log a keeper with ⭕ Circle in Deliver, use Circle Take dailies
+          if installed, or add clips directly.
         </div>
       )}
 

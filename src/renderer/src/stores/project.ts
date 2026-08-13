@@ -71,6 +71,7 @@ interface ProjectState {
   remove(id: string): Promise<void>
 
   mutate(fn: (p: Project) => void): void
+  persist(): Promise<void>
   selectScene(id: string | null): void
   selectShot(sceneId: string, shotId: string): void
 
@@ -160,6 +161,17 @@ export const useProject = create<ProjectState>((set, get) => ({
     saveTimer = setTimeout(() => {
       void window.slate.saveProject(next).then(() => set({ dirty: false }))
     }, 500)
+  },
+
+  async persist() {
+    const p = get().project
+    if (!p) return
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+      saveTimer = null
+    }
+    await window.slate.saveProject(p)
+    set({ dirty: false })
   },
 
   selectScene(id) {

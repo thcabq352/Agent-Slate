@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 use slate_engine::{http, mcp, EngineCtx};
 
 #[derive(Parser, Debug)]
-#[command(name = "slate-engine", version, about = "Slate film factory engine")]
+#[command(name = "slate-engine", version, about = "Agent-Slate film factory engine")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -12,9 +12,9 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Start loopback HTTP control server (writes control.json descriptor).
+    /// Start loopback HTTP control server (writes engine-control.json).
     Serve,
-    /// Stdio JSON-RPC MCP server (Hermes / Claude Code).
+    /// Stdio JSON-RPC MCP server (Hermes / Cursor CLI).
     Mcp,
 }
 

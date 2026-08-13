@@ -1,46 +1,18 @@
-# Install — Slate Film Factory skill
+# Install — Agent-Slate Film Factory skill
 
-Share this folder (or `share/slate-film-factory.zip` from the repo). It is **instructions + MCP contract**, not model weights.
+Hermes Skills Hub layout: `SKILL.md` + `references/`. No weights, no binary.
 
-## Hermes
-
-```bash
-# 1) Copy the skill
-# Windows:  %USERPROFILE%\.hermes\skills\slate-film-factory\SKILL.md
-# macOS/Linux: ~/.hermes/skills/slate-film-factory/SKILL.md
-
-# 2) Build / point at slate-engine
-cargo build -p slate-engine
-
-# 3) Register MCP (blocking factory, 1800s)
-hermes mcp add slate -- /ABS/PATH/to/target/debug/slate-engine mcp
-```
-
-YAML:
-
-```yaml
-mcp_servers:
-  slate:
-    command: /ABS/PATH/to/target/debug/slate-engine
-    args: [mcp]
-    enabled: true
-    timeout: 1800
-    connect_timeout: 120
-```
-
-Restart the Hermes gateway.
-
-## Claude Code / other MCP
+**Preferred**
 
 ```bash
-# stdio
-slate-engine mcp
+hermes skills tap add thcabq352/Agent-Slate
+hermes skills install slate-film-factory -y --category media
 ```
 
-## What the agent must do
+Zip: `npm run share:skill` → `share/slate-film-factory.zip`, then `hermes skills install <zip> -y --name slate-film-factory --category media`.
 
-- Call **`slate_film_factory` blocking** — do **not** pass `"background": true` (that is Electron-only).
-- Timeout **1800s**.
-- Prefer `pack_id: "default-still"` for a 4-shot factory; `default-i2v` / `default-flf2v` / `default-video` need local LTX 2.3 + Gemma + distilled LoRA on Comfy `:8188`.
+**MCP** — `hermes mcp add slate -- <path-to-slate-engine> mcp` then `hermes mcp test slate`. Tool timeout **1800s**. Do not paste MCP server YAML.
 
-Repo: https://github.com/thcabq352/slate (Agent-Slate). Operator docs: `docs/STATUS.md`.
+Full steps: `references/install.md` (or `skill_view("slate-film-factory", "references/install.md")`).
+
+Repo: https://github.com/thcabq352/Agent-Slate

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useProject } from './stores/project'
+import { brainDisplayName } from '../../shared/types'
 import Navigator from './components/Navigator'
 import ShotWorkspace from './components/ShotWorkspace'
 import RightRail from './components/RightRail'
@@ -8,6 +9,8 @@ import EngineDock from './components/EngineDock'
 import HelpModal from './components/HelpModal'
 import AboutModal from './components/AboutModal'
 import Home from './components/Home'
+import { helpShortcutLabel } from './lib/platform'
+import { anyBrainAvailable } from './lib/brainReady'
 import './styles/app.css'
 
 export default function App(): React.JSX.Element {
@@ -49,24 +52,37 @@ export default function App(): React.JSX.Element {
     })
     const offHelp = window.slate.onHelpOpen(() => setHelpOpen(true))
     const offAbout = window.slate.onAboutOpen(() => setAboutOpen(true))
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === '/' && (e.ctrlKey || e.metaKey) && !e.altKey) {
+        e.preventDefault()
+        setHelpOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
     return () => {
       off()
       offHelp()
       offAbout()
+      window.removeEventListener('keydown', onKey)
     }
   }, [refreshMetas, refreshBrain])
 
-  const brainReady = brain?.claude.available || brain?.codex.available || brain?.local?.available
+  const brainReady = anyBrainAvailable(brain)
 
   return (
     <div className="shell">
       <div className="titlebar">
         <div className="wordmark">
-          <b>◆</b>&nbsp;&nbsp;S L A T E
+          <b>◆</b>&nbsp;&nbsp;Agent-Slate
         </div>
         <div className="titlebar-side">
           {dirty && <span className="save-dot" title="Saving…" />}
-          <button className="btn btn-ghost btn-sm" title="Slate Help (⌘/)" onClick={() => setHelpOpen(true)}>
+          <button
+            className="btn btn-ghost btn-sm"
+            title={`Agent-Slate Help (${helpShortcutLabel()})`}
+            aria-label={`Agent-Slate Help (${helpShortcutLabel()})`}
+            onClick={() => setHelpOpen(true)}
+          >
             ?
           </button>
           {project && (
@@ -82,20 +98,20 @@ export default function App(): React.JSX.Element {
                   : testState === 'ok'
                     ? '✓ Brain online'
                     : brainReady
-                      ? `Brain: ${project.defaults.brain === 'claude' ? 'Claude Code' : project.defaults.brain === 'codex' ? 'Codex' : 'Local model'} — test`
+                      ? `Brain: ${brainDisplayName(project.defaults.brain)} — test`
                       : 'Brain offline'}
               </button>
               <button
                 className={`btn btn-sm ad-toggle ${adOpen ? 'on' : ''}`}
                 onClick={() => setAdOpen((v) => !v)}
-                title="First AD — optional: talk through what you want and it operates the in-app set"
+                title="First AD — studio planner. Scenes, shots, prompts, bible. Does not generate."
               >
                 ✦ First AD
               </button>
               <button
                 className={`btn btn-sm ad-toggle ${engineOpen ? 'on' : ''}`}
                 onClick={() => setEngineOpen((v) => !v)}
-                title="Agent dock — slate-engine status, First AD, quality review"
+                title="Agent dock — engine, Factory AD, quality, assemble"
               >
                 ◆ Agent
               </button>
@@ -115,7 +131,7 @@ export default function App(): React.JSX.Element {
         </div>
       )}
       {!project ? (
-        <Home />
+        <Home onOpenHelp={() => setHelpOpen(true)} />
       ) : (
         <div className="workspace" style={{ gridTemplateColumns: railOpen ? '240px 1fr 320px' : '240px 1fr 0px' }}>
           <div className="pane pane-left">

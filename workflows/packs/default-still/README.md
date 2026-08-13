@@ -1,6 +1,6 @@
 # default-still pack
 
-Still-image ComfyUI API pack for `slate_film_factory` / `slate_generate_shot`. Also used as the **keyframe** source for `default-i2v` / `default-flf2v` when no still exists yet.
+Still-image ComfyUI API pack for Agent-Slate `slate_film_factory` / `slate_generate_shot`. Also used as the **keyframe** source for `default-i2v` / `default-flf2v` when no still exists yet.
 
 See the pack index: [../README.md](../README.md).
 

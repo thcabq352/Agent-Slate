@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useProject } from '../stores/project'
-import type { BrainBackend } from '../../../shared/types'
+import { BRAIN_PICKER, type BrainBackend } from '../../../shared/types'
 
 export default function Navigator(): React.JSX.Element {
   const store = useProject()
@@ -164,9 +164,11 @@ function ProjectMetaEditor(): React.JSX.Element {
                 store.mutate((proj) => void (proj.defaults.brain = e.target.value as BrainBackend))
               }
             >
-              <option value="claude">Claude Code (subscription)</option>
-              <option value="codex">Codex CLI (subscription)</option>
-              <option value="local">Local model (offline)</option>
+              {BRAIN_PICKER.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
           {p.defaults.brain === 'local' && <LocalBrainFields />}

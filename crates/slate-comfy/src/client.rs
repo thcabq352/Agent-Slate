@@ -44,6 +44,7 @@ impl ComfyClient {
         let base_url = base_url.into().trim_end_matches('/').to_string();
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
+            .no_proxy()
             .build()
             .map_err(|e| Error::Http(e.to_string()))?;
         Ok(Self { base_url, http })
@@ -58,17 +59,31 @@ impl ComfyClient {
         format!("{}{}", self.base_url, path)
     }
 
-    /// GET `/system_stats`, falling back to `/queue`. Accepts any 2xx.
-    pub async fn health(&self) -> Result<()> {
-        let stats = self.http.get(self.url("/system_stats")).send().await;
+    fn loopback_alt(base: &str) -> Option<String> {
+        if base.contains("127.0.0.1") {
+            Some(base.replace("127.0.0.1", "localhost"))
+        } else if let Some(rest) = base.strip_prefix("http://localhost") {
+            Some(format!("http://127.0.0.1{rest}"))
+        } else if let Some(rest) = base.strip_prefix("https://localhost") {
+            Some(format!("https://127.0.0.1{rest}"))
+        } else {
+            None
+        }
+    }
+
+    async fn health_at(http: &reqwest::Client, base: &str) -> Result<()> {
+        let stats = http
+            .get(format!("{base}/system_stats"))
+            .timeout(Duration::from_secs(3))
+            .send()
+            .await;
         match stats {
             Ok(resp) if resp.status().is_success() => Ok(()),
             Ok(resp) => {
                 let status = resp.status();
-                // Fallback when /system_stats is missing on older builds.
-                let queue = self
-                    .http
-                    .get(self.url("/queue"))
+                let queue = http
+                    .get(format!("{base}/queue"))
+                    .timeout(Duration::from_secs(3))
                     .send()
                     .await
                     .map_err(|e| Error::Http(e.to_string()))?;
@@ -82,8 +97,11 @@ impl ComfyClient {
                 }
             }
             Err(e) => {
-                // Network error on system_stats — still try queue once.
-                let queue = self.http.get(self.url("/queue")).send().await;
+                let queue = http
+                    .get(format!("{base}/queue"))
+                    .timeout(Duration::from_secs(3))
+                    .send()
+                    .await;
                 match queue {
                     Ok(resp) if resp.status().is_success() => Ok(()),
                     Ok(resp) => Err(Error::Http(format!(
@@ -94,6 +112,23 @@ impl ComfyClient {
                         "health unreachable: system_stats={e}, queue={e2}"
                     ))),
                 }
+            }
+        }
+    }
+
+    /// GET `/system_stats`, falling back to `/queue`. Accepts any 2xx.
+    /// Also retries the other loopback host (`127.0.0.1` ↔ `localhost`) because
+    /// Comfy on Windows often binds IPv4-only while `localhost` is IPv6.
+    pub async fn health(&self) -> Result<()> {
+        match Self::health_at(&self.http, &self.base_url).await {
+            Ok(()) => Ok(()),
+            Err(first) => {
+                if let Some(alt) = Self::loopback_alt(&self.base_url) {
+                    if Self::health_at(&self.http, &alt).await.is_ok() {
+                        return Ok(());
+                    }
+                }
+                Err(first)
             }
         }
     }
@@ -260,47 +295,67 @@ impl ComfyClient {
     }
 }
 
-/// Walk a history entry's `outputs` and collect image (and common media) file refs.
-pub fn collect_output_files(history: &Value) -> Vec<ComfyFileRef> {
+/// Collect media file refs from one history node's output object.
+fn files_from_node(node_out: &Value) -> Vec<ComfyFileRef> {
     let mut out = Vec::new();
-    let Some(outputs) = history.get("outputs").and_then(|o| o.as_object()) else {
+    let Some(node_obj) = node_out.as_object() else {
         return out;
     };
-    for (_node_id, node_out) in outputs {
-        let Some(node_obj) = node_out.as_object() else {
+    // Comfy still graphs: "images"; SaveVideo often serializes as images + animated.
+    for key in ["images", "gifs", "videos"] {
+        let Some(arr) = node_obj.get(key).and_then(|a| a.as_array()) else {
             continue;
         };
-        // Comfy still graphs: "images"; video/gif packs may use other keys.
-        for key in ["images", "gifs", "videos"] {
-            let Some(arr) = node_obj.get(key).and_then(|a| a.as_array()) else {
+        for item in arr {
+            let filename = item
+                .get("filename")
+                .and_then(|f| f.as_str())
+                .unwrap_or("")
+                .to_string();
+            if filename.is_empty() {
                 continue;
-            };
-            for item in arr {
-                let filename = item
-                    .get("filename")
-                    .and_then(|f| f.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                if filename.is_empty() {
-                    continue;
-                }
-                let subfolder = item
-                    .get("subfolder")
-                    .and_then(|s| s.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let file_type = item
-                    .get("type")
-                    .and_then(|t| t.as_str())
-                    .unwrap_or("output")
-                    .to_string();
-                out.push(ComfyFileRef {
-                    filename,
-                    subfolder,
-                    file_type,
-                });
+            }
+            let subfolder = item
+                .get("subfolder")
+                .and_then(|s| s.as_str())
+                .unwrap_or("")
+                .to_string();
+            let file_type = item
+                .get("type")
+                .and_then(|t| t.as_str())
+                .unwrap_or("output")
+                .to_string();
+            out.push(ComfyFileRef {
+                filename,
+                subfolder,
+                file_type,
+            });
+        }
+    }
+    out
+}
+
+/// Walk a history entry's `outputs` and collect image (and common media) file refs.
+pub fn collect_output_files(history: &Value) -> Vec<ComfyFileRef> {
+    collect_output_files_preferring(history, None)
+}
+
+/// Prefer files from `node_id` (pack `outputs.media.node_id`); fall back to every node.
+pub fn collect_output_files_preferring(history: &Value, node_id: Option<&str>) -> Vec<ComfyFileRef> {
+    let Some(outputs) = history.get("outputs").and_then(|o| o.as_object()) else {
+        return Vec::new();
+    };
+    if let Some(id) = node_id {
+        if let Some(node) = outputs.get(id) {
+            let preferred = files_from_node(node);
+            if !preferred.is_empty() {
+                return preferred;
             }
         }
+    }
+    let mut out = Vec::new();
+    for (_id, node) in outputs {
+        out.extend(files_from_node(node));
     }
     out
 }
@@ -319,7 +374,7 @@ pub fn load_pack(packs_dir: &Path, pack_id: &str) -> Result<(PackManifest, Value
     Ok((manifest, workflow))
 }
 
-/// Load pack → inject values → queue → wait → download first output into `dest_dir`.
+/// Load pack → inject values → queue → wait → download the pack's declared media output.
 ///
 /// When `SLATE_DRY_RUN=1`, skips HTTP and writes `dry-run.txt` under `dest_dir`.
 pub async fn generate_to_file(
@@ -354,10 +409,14 @@ pub async fn generate_to_file(
     let history = client
         .wait_history(&prompt_id, Duration::from_secs(600), cancel)
         .await?;
-    let files = collect_output_files(&history);
-    let first = files
-        .first()
-        .ok_or_else(|| Error::Comfy(format!("no output files for prompt_id={prompt_id}")))?;
+    let preferred = manifest.outputs.get("media").map(|o| o.node_id.as_str());
+    let files = collect_output_files_preferring(&history, preferred);
+    let first = files.first().ok_or_else(|| {
+        Error::Comfy(format!(
+            "no output files for prompt_id={prompt_id} (wanted node {})",
+            preferred.unwrap_or("(any)")
+        ))
+    })?;
 
     let dest = dest_dir.join(&first.filename);
     client.download_file(first, &dest).await?;
@@ -375,4 +434,21 @@ fn random_hex(n_bytes: usize) -> String {
     (0..n_bytes)
         .map(|_| format!("{:02x}", rng.gen::<u8>()))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn loopback_alt_swaps_hosts() {
+        assert_eq!(
+            ComfyClient::loopback_alt("http://127.0.0.1:8188").as_deref(),
+            Some("http://localhost:8188")
+        );
+        assert_eq!(
+            ComfyClient::loopback_alt("http://localhost:8188").as_deref(),
+            Some("http://127.0.0.1:8188")
+        );
+    }
 }
