@@ -79,6 +79,8 @@ slate:
 
 `slate_list_packs` → `ready: false` only if the graph still contains `PLACEHOLDER` / `ALIGN_ME`.
 
+**Local LTX routing.** Video packs do not call LTX Cloud. New scene / multi-cut / synced dialogue → **LTX-2.5** (split weights, Gemma 4). Extend or retake of an existing plate → **LTX-2.3 Pro only** (no such graph is shipped). The live graphs remain LTX-2.3 distilled fp8 + Gemma 3. Inventory: [ltx-local-stack-audit.md](ltx-local-stack-audit.md).
+
 Live video test (opt-in, slow):
 
 ```bash
