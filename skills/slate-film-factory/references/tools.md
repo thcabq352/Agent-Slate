@@ -28,4 +28,6 @@ Call these on MCP server **`slate`**. Agent factory is **blocking**. Never pass 
 | `default-flf2v` | First + last still → LTX |
 | `default-video` | LTX T2V from text |
 
+Local Comfy only (no LTX Cloud). **New scene / multi-cut / synced dialogue → LTX-2.5** (split weights, Gemma 4). The packs above still load the installed LTX-2.3 distilled + Gemma 3 graph. **Extend or retake an existing plate → LTX-2.3 Pro only** — no such pack ships here; do not use `default-video` or LTX-2.5 for that job.
+
 Comfy: `http://127.0.0.1:8188`. Weights stay in Comfy. Env: `SLATE_DRY_RUN`, `SLATE_PACKS_DIR`, `SLATE_BRAIN`, `SLATE_FFMPEG`, `SLATE_JUDGE_MODEL`.

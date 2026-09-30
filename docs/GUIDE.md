@@ -161,6 +161,8 @@ flowchart TD
 | `default-i2v` | Flux keyframe (or still) → LTX I2V |
 | `default-flf2v` | First + last frame → LTX |
 
+Video packs are local Comfy, not LTX Cloud. New scene / multi-cut / synced dialogue → **LTX-2.5**. Extend or retake of an existing plate → **LTX-2.3 Pro only**. The graphs above are still the installed LTX-2.3 distilled stack. See [ltx-local-stack-audit.md](ltx-local-stack-audit.md).
+
 **Factory AD** in the dock (`slate_first_ad`) is the engine operator: continuity book + scene plan for generates. It is not ✦ First AD.
 
 Control files (do not mix):

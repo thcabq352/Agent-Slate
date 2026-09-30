@@ -65,6 +65,13 @@ Completion: tool returns `ok` with a `projectId` and take paths, or a clear erro
 
 Packs: `default-still` (Flux, best first factory) · `default-i2v` · `default-flf2v` · `default-video` (LTX shorts). Full tool args: `skill_view("slate-film-factory", "references/tools.md")`.
 
+Video packs are **local Comfy** weights. Do not send a shot to LTX Cloud.
+
+| Job | Local stack |
+| --- | --- |
+| New scene, multi-cut, or synced dialogue | **LTX-2.5** (split weights, Gemma 4). The checked-in graphs are still LTX-2.3 distilled + Gemma 3. |
+| Extend or retake an existing plate | **LTX-2.3 Pro only.** This skill has no extend/retake pack. Do not use 2.5 or `default-video` for that job. |
+
 ## Procedure
 
 1. `slate_health` — Comfy ok (or dry-run), at least one brain, `packsOk` true. Stop if not.
@@ -80,6 +87,7 @@ Packs: `default-still` (Flux, best first factory) · `default-i2v` · `default-f
 - I2V/FLF2V/T2V are **one short clip per shot**. Don't promise a 4-shot live LTX movie in one sitting.
 - Never spawn a binary named `agent` (Grok and Cursor collide). Engine binary is `slate-engine` / `slate-engine.exe`.
 - Weights are not in this skill. Missing checkpoints → re-align pack `workflow.api.json` on that Comfy.
+- Do not swap the 2.3 distilled `ckpt_name` for LTX-2.5 split files. That is a different graph.
 
 ## Verification
 

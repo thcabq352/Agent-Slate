@@ -38,9 +38,20 @@ cargo run -p slate-engine -- serve
 
 **This host (2026-08-12):** `slate_video_00001_.mp4` · 356 KB · 92 s · 768×432 · 49 frames @ 24 fps.
 
+## Local LTX routing
+
+Local Comfy only. This pack does not call LTX Cloud.
+
+| Job | Local stack |
+| --- | --- |
+| New scene, multi-cut, or synced dialogue | **LTX-2.5** (split weights, Gemma 4 text encoder). Do not point this 2.3 monolith graph at those files. |
+| Extend or retake an existing plate | **LTX-2.3 Pro only.** This T2V graph is not that job. |
+
+This file is the installed **new-scene draft**: `ltx-2.3-22b-distilled-fp8.safetensors` + `gemma_3_12B_it_fp4_mixed.safetensors`. There is no legacy LTX-Video 0.9 / T5 video encoder in the graph. Full inventory: [docs/ltx-local-stack-audit.md](../../../docs/ltx-local-stack-audit.md).
+
 ## Re-align on another machine
 
-1. Confirm LTX 2.3 distilled + Gemma + distilled LoRA names in Comfy.
+1. Confirm LTX 2.3 distilled + Gemma 3 + distilled LoRA names in Comfy. A new-scene 2.5 graph is a separate export (split transformer, Gemma 4, video VAE, audio VAE), not a `ckpt_name` edit here.
 2. Export a working T2V graph (**Save (API Format)**) if node ids differ.
 3. Replace `workflow.api.json` and update `manifest.json`.
 4. `slate_list_packs` shows `ready: true` when the graph no longer contains `PLACEHOLDER` / `ALIGN_ME`.

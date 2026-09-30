@@ -145,6 +145,8 @@ It pairs naturally with the rest of [Wasserman's Filmmaker Suite](https://github
 | `default-i2v` | LTX I2V from a Flux keyframe or provided still |
 | `default-flf2v` | LTX first + last frame |
 
+Video stays on local Comfy. New scene / multi-cut / synced dialogue → **LTX-2.5**. Extend or retake of an existing plate → **LTX-2.3 Pro only**. The checked-in graphs are LTX-2.3 distilled + Gemma 3. See [`docs/ltx-local-stack-audit.md`](docs/ltx-local-stack-audit.md).
+
 **Build & run**
 
 ```bash

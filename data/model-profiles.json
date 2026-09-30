@@ -641,7 +641,7 @@
    "kind": "video",
    "dialect": {
     "style": "cinematic-prose",
-    "guidance": "Write one flowing paragraph of roughly two hundred words, in chronological order, with no labels, headers or tag lists — the model was documented and tuned around exactly this shape. Order the content as main action first, then the specific movements within it, then character description, then environment, then camera angle and move, then lighting, and finally any change that occurs during the shot. Because generation is single-pass audio and video, describe the soundscape in the same paragraph (footsteps on gravel, distant traffic, a low room tone); ambient sound and effects come out markedly stronger than speech, so avoid hanging a shot on a spoken line. Camera language is understood natively and dedicated dolly and jib controls exist, so name the move plainly rather than implying it. Avoid timestamp syntax here — nothing in the documentation supports timecoded beats, and chronological prose is the supported way to sequence action."
+    "guidance": "Write one flowing paragraph of roughly two hundred words, in chronological order, with no labels, headers or tag lists — the model was documented and tuned around exactly this shape. Order the content as main action first, then the specific movements within it, then character description, then environment, then camera angle and move, then lighting, and finally any change that occurs during the shot. Because generation is single-pass audio and video, describe the soundscape in the same paragraph (footsteps on gravel, distant traffic, a low room tone); ambient sound and effects come out markedly stronger than speech, so avoid hanging a shot on a spoken line. Camera language is understood natively and dedicated dolly and jib controls exist, so name the move plainly rather than implying it. Avoid timestamp syntax here — nothing in the documentation supports timecoded beats, and chronological prose is the supported way to sequence action. Do not put model ids or endpoint names in the paragraph. This recipe is the local LTX-2.3 Comfy dialect: a new scene, multi-cut, or synced dialogue belongs on local LTX-2.5 instead, and an extend or retake of an existing plate stays on LTX-2.3 Pro."
    },
    "limits": {
     "maxChars": null,
@@ -675,7 +675,7 @@
       "ltx-2.3-22b-fast",
       "ltx-2.3-22b-pro"
      ],
-     "note": "The distilled build runs in as few as 8 denoising steps."
+     "note": "Local prompt labels, not a cloud model menu. Published LTX-2.3 monoliths are ltx-2.3-22b-dev and ltx-2.3-22b-distilled-1.1 (Gemma 3 is a separate file). The factory graphs load ltx-2.3-22b-distilled-fp8.safetensors. ltx-2.3-22b-fast and ltx-2.3-22b-pro are not filenames in the Lightricks LTX-2.3 model list. Extend/retake routing uses the name LTX-2.3 Pro and must not be pointed at LTX-2.5. The distilled build runs in as few as 8 denoising steps."
     },
     {
      "name": "enhance_prompt",
@@ -703,10 +703,10 @@
     {
      "name": "generate_audio",
      "type": "boolean",
-     "note": "Parameter name comes from third-party API wrappers; the official spelling is unverified."
+     "note": "Checked-in Comfy graphs always build a joint audio latent (LTXVEmptyLatentAudio). They do not send a cloud generate_audio flag."
     }
    ],
-   "notes": "LTX-2 shipped January 6, 2026 as the first production-ready open-weights model combining 4K output, synchronized audio and open training code; LTX-2.3 is the current 22B-parameter checkpoint update, whose exact release date is unverified. Duration figures conflict across sources: audio-synced generation is documented around 10 seconds while third-party guides claim 6-20s or longer for the older non-audio pipeline, so maxDurationSec uses the conservative verified figure and durations is null. The frequently cited 50fps ceiling could not be confirmed against Lightricks' own material, so fps is null. Negative-prompt support is not mentioned in any official material and is set false meaning 'not documented'. Aspect ratios are inferred from the documented 1920x1080 and 1080x1920 outputs rather than from a published list."
+   "notes": "Local Comfy prompt dialect for LTX-2.3. Not an LTX Cloud client. LTX-2 shipped January 6, 2026 as the open-weights audio-video model; this profile stays on the 2.3 prose recipe (one chronological paragraph, sound in the same paragraph, no timecodes). Routing: a new scene, multi-cut, or synced dialogue is local LTX-2.5 (split weights, Gemma 4) and is a different stack — do not treat this profile as that recipe. Extend or retake of an existing plate stays on LTX-2.3 Pro only. Factory graphs load ltx-2.3-22b-distilled-fp8 plus gemma_3_12B_it_fp4_mixed; there is no ltx-2.3-22b-pro.safetensors in the Lightricks 2.3 model list. Legacy local LTX-Video 0.9 checkpoints and a T5 video encoder are not this profile (Flux stills use T5 separately). Duration figures conflict across sources: audio-synced generation is documented around 10 seconds while older non-audio writeups claim longer clips, so maxDurationSec uses the conservative verified figure and durations is null. The frequently cited 50fps ceiling could not be confirmed against Lightricks' own material, so fps is null. Negative-prompt support is not mentioned in official material and is set false meaning 'not documented'. Aspect ratios are inferred from the documented 1920x1080 and 1080x1920 outputs rather than from a published list."
   },
   {
    "id": "kling",
