@@ -1,0 +1,22 @@
+{
+  "4": {
+    "class_type": "ByteDance2DraftToFinalVideoNode",
+    "inputs": {
+      "draft_task_id": "",
+      "watermark": false
+    }
+  },
+  "5": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "4",
+        0
+      ],
+      "filename_prefix": "video/AgentSlate_seedance25_final",
+      "format": "auto",
+      "format.codec": "auto",
+      "codec": "auto"
+    }
+  }
+}

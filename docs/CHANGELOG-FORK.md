@@ -4,6 +4,10 @@ Notable changes in this maintained fork relative to upstream Slate. Apache-2.0 a
 
 Current snapshot: [STATUS.md](STATUS.md).
 
+## 2026-09-30
+
+- Pack C staged: Hermes skill `skills/slate-seedance-draft/` and Comfy Desk graphs `workflows/partner/seedance-2-5-draft/` for Seedance 2.5 Draft (480p, `dreamina-seedance-2-5-260628`) → `ByteDance2DraftToFinalVideoNode` native 1080p. Templates `api_seedance2_5_draft_{t2v,i2v,r2v}`. Outside `workflows/packs/`, so the local factory does not queue it. See [packs/pack-c-seedance-2-5-draft.md](packs/pack-c-seedance-2-5-draft.md).
+
 ## 2026-08-13
 
 - Hermes Skills Hub packaging: `skills/slate-film-factory/` is SKILL.md + `references/` (≤60-char description, no MCP YAML). Install: `hermes skills tap add thcabq352/Agent-Slate` then `hermes skills install slate-film-factory -y --category media`.

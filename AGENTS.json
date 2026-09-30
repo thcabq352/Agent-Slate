@@ -53,6 +53,10 @@
       "do": "slate-engine + Comfy. Dock: background true. Hermes: blocking slate_film_factory, timeout 1800s"
     },
     {
+      "intent": "Seedance 2.5 one-take / Draft to Final",
+      "do": "Skill skills/slate-seedance-draft and workflows/partner/seedance-2-5-draft. Comfy Desk only. Do not slate_film_factory or slate_run_pack this route."
+    },
+    {
       "intent": "Grok brain or VO",
       "do": "grok login (not Cursor OAuth). Never spawn a binary named agent"
     },
@@ -139,7 +143,9 @@
     "crates/slate-comfy": "Comfy client + packs",
     "crates/slate-engine": "Factory MCP + HTTP serve",
     "workflows/packs/": "Comfy API graphs (no weights)",
+    "workflows/partner/seedance-2-5-draft/": "Comfy Desk reference for Seedance 2.5 Draft→Final (not a factory pack)",
     "skills/slate-film-factory/": "Hermes Skills Hub skill (SKILL.md + references/)",
+    "skills/slate-seedance-draft/": "Hermes skill — Seedance 2.5 one-take Draft→1080p",
     "scripts/setup.mjs": "Cross-platform from-source setup",
     "scripts/package-desktop.mjs": "Unpacked desktop app (all OS)"
   },
@@ -263,6 +269,9 @@
     { "path": "docs/engine.md", "audience": "Factory operator" },
     { "path": "docs/CHANGELOG-FORK.md", "audience": "Fork delta vs upstream" },
     { "path": "skills/slate-film-factory/SKILL.md", "audience": "Hermes Skills Hub — film factory" },
+    { "path": "skills/slate-seedance-draft/SKILL.md", "audience": "Hermes — Seedance 2.5 Draft→Final (Pack C)" },
+    { "path": "docs/packs/pack-c-seedance-2-5-draft.md", "audience": "Pack C prompt + Comfy Desk contract" },
+    { "path": "workflows/partner/seedance-2-5-draft/README.md", "audience": "Comfy Desk attach contract" },
     { "path": "docs/ATTRIBUTION.md", "audience": "Apache-2.0 credit" },
     { "path": "workflows/packs/README.md", "audience": "Comfy packs" },
     { "path": "docs/prompting-research.md", "audience": "Studio Deliver model-profile notes" }

@@ -147,6 +147,8 @@ See `workflows/packs/`.
 
 `ready: false` if `workflow.api.json` still contains `PLACEHOLDER` / `ALIGN_ME`. Music is compile-only.
 
+Seedance 2.5 Draft→Final lives in [`workflows/partner/seedance-2-5-draft/`](../workflows/partner/seedance-2-5-draft/) for Comfy Desk. It has no `manifest.json`, so the engine pack resolver does not queue it. Skill: [`skills/slate-seedance-draft/SKILL.md`](../skills/slate-seedance-draft/SKILL.md).
+
 Live LTX **T2V** one-clip on this host: `slate_video_00001_.mp4`, 356 KB, ~92 s (2026-08-12). I2V / FLF2V graphs match live Comfy `object_info` (not yet one-clip smoked).
 
 Shareable skill zip: [`share/slate-film-factory.zip`](../share/slate-film-factory.zip) (`npm run share:skill`). Hub: `hermes skills tap add thcabq352/Agent-Slate` then `hermes skills install slate-film-factory -y --category media`.

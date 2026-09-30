@@ -1,0 +1,84 @@
+{
+  "pack": "C",
+  "title": "Seedance 2.5 one-take Draft to Final",
+  "surface": "comfy-desk",
+  "factoryPack": false,
+  "queueFromThisRepo": false,
+  "modelOption": "Seedance 2.5 Draft",
+  "modelId": "dreamina-seedance-2-5-260628",
+  "draftFlag": true,
+  "draftFlagSource": "Selecting model option Seedance 2.5 Draft sets draft true on the Partner task. There is no separate draft checkbox.",
+  "scoutResolution": "480p",
+  "scoutResolutionLocked": true,
+  "finalResolution": "1080p",
+  "finalResolutionSource": "ByteDance2DraftToFinalVideoNode submits resolution 1080p with model dreamina-seedance-2-5-260628.",
+  "draftTaskIdField": "draft_task_id",
+  "draftTaskTtlDays": 7,
+  "seed": {
+    "widget": "seed",
+    "controlAfterGenerate": "fixed",
+    "shippedValue": 0,
+    "rule": "Set control_after_generate to fixed before promote, and keep the integer that produced the approved draft. The node tooltip states results are non-deterministic regardless of seed; fixed stops Comfy from changing the seed and minting a new draft_task_id on the next Stage 1 queue."
+  },
+  "generateAudio": {
+    "widget": "model.generate_audio",
+    "shippedValue": false,
+    "rule": "false when post owns audio. true only when the take itself must carry dialogue or sound effects. The final node inherits this setting."
+  },
+  "durationSec": 30,
+  "durationRangeSec": [
+    4,
+    30
+  ],
+  "ratio": {
+    "t2v": "16:9",
+    "r2v": "16:9",
+    "i2v": "adaptive-from-first-frame"
+  },
+  "i2vNote": "Template api_seedance2_5_draft_i2v uses ByteDance2FirstLastFrameNode. Seedance 2.5 on that node has no ratio widget and submits ratio adaptive from the first frame. Supply a 16:9 plate. last_frame stays unconnected for a one-take from the start frame.",
+  "r2vTaskType": "reference",
+  "promptShape": "16:9, cinematic, single continuous take. Refs: @Image1 character, @Image2 location, @Clay Render 1 blocking. 0–10s: the character crosses into the location and lands the clay-blockout mark. 10–20s: one continuous move, camera stays with them, wardrobe unchanged. 20–30s: they settle on the end mark in the same light. No subtitles, No BGM. Keep identity/wardrobe locked.",
+  "officialTemplateIds": {
+    "t2v": "api_seedance2_5_draft_t2v",
+    "i2v": "api_seedance2_5_draft_i2v",
+    "r2v": "api_seedance2_5_draft_r2v"
+  },
+  "nodes": {
+    "t2v": {
+      "classType": "ByteDance2TextToVideoNode",
+      "displayName": "ByteDance Seedance 2.5 Text to Video"
+    },
+    "i2v": {
+      "classType": "ByteDance2FirstLastFrameNode",
+      "displayName": "ByteDance Seedance 2.5 First-Last-Frame to Video"
+    },
+    "r2v": {
+      "classType": "ByteDance2ReferenceNodeV2",
+      "displayName": "ByteDance Seedance 2.5 Reference to Video"
+    },
+    "promote": {
+      "classType": "ByteDance2DraftToFinalVideoNode",
+      "displayName": "ByteDance Seedance 2.5 Draft to Final Video",
+      "inputs": [
+        "draft_task_id",
+        "watermark"
+      ]
+    },
+    "saveDraftId": {
+      "classType": "SaveText"
+    },
+    "saveVideo": {
+      "classType": "SaveVideo"
+    }
+  },
+  "stageMode": {
+    "always": 0,
+    "bypass": 4,
+    "shipped": "both stages bypassed"
+  },
+  "sources": [
+    "https://docs.comfy.org/tutorials/partner-nodes/bytedance/seedance-2-5-draft",
+    "https://github.com/Comfy-Org/ComfyUI/pull/16529",
+    "https://github.com/Comfy-Org/workflow_templates/pull/1288"
+  ]
+}

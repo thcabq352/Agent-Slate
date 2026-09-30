@@ -161,6 +161,8 @@ flowchart TD
 | `default-i2v` | Flux keyframe (or still) → LTX I2V |
 | `default-flf2v` | First + last frame → LTX |
 
+Seedance 2.5 one-take (Draft 480p → native 1080p) is Comfy Partner on Comfy Desk, skill [`slate-seedance-draft`](../skills/slate-seedance-draft/SKILL.md). Graphs: [`workflows/partner/seedance-2-5-draft/`](../workflows/partner/seedance-2-5-draft/). The factory table above stays local Flux/LTX.
+
 **Factory AD** in the dock (`slate_first_ad`) is the engine operator: continuity book + scene plan for generates. It is not ✦ First AD.
 
 Control files (do not mix):

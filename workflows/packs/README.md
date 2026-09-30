@@ -13,4 +13,6 @@ Checked-in API graphs for Agent-Slate `slate_film_factory` / `slate_run_pack` / 
 
 `slate_run_pack` extra fields: `image`, `image_end` (I2V / FLF2V), `frames`.
 
+Seedance 2.5 Draft→Final is a Comfy Desk reference, not a factory pack: [`workflows/partner/seedance-2-5-draft/`](../partner/seedance-2-5-draft/).
+
 See [docs/STATUS.md](../../docs/STATUS.md).
