@@ -260,10 +260,10 @@
       "title": "Pack C — read before queue",
       "properties": {},
       "widgets_values": [
-        "Agent-Slate Pack C reference graph for Comfy Desk. Both stages ship bypassed (node mode 4) so opening this graph does not submit a Partner task.\n\nStage 1 scout — enable these nodes together (mode 0), queue once: model option Seedance 2.5 Draft, model id dreamina-seedance-2-5-260628, draft true, resolution 480p. Keep control_after_generate on fixed and keep the same seed integer. Save Text writes draft_task_id to a txt in the output folder. Use the same prompt and the same refs on the promote.\n\nStage 2 promote — within 7 days, paste that draft_task_id into ByteDance Seedance 2.5 Draft to Final Video, set Stage 1 back to bypass, set Stage 2 to mode 0, queue once. The final is native 1080p. Prompt, refs, duration, aspect ratio, seed, and generate_audio are inherited. There is no prompt field on the final node.\n\ngenerate_audio is false because post owns the soundtrack. Turn it on only when this take must carry its own dialogue or sound effects.\n\nA second Stage 1 queue creates a new draft. Leave Stage 1 bypassed once the preview is approved."
+        "Agent-Slate Pack C field-shape record. Local-only is a hard requirement: no cloud APIs, no cloud services, no hosted inference.\n\nThese ByteDance Partner nodes stay bypassed (mode 4). The agent does not enable them and does not queue them. They are not an execution route.\n\nGenerate the one-take on local Comfy at http://127.0.0.1:8188 with workflows/packs (default-still, default-video, default-i2v, default-flf2v) through slate-engine.\n\nRecorded scout fields: model option Seedance 2.5 Draft, model id dreamina-seedance-2-5-260628, draft true, resolution 480p, control_after_generate fixed. Recorded promote field: draft_task_id on ByteDance Seedance 2.5 Draft to Final Video."
       ],
       "widgets_values_named": {
-        "text": "Agent-Slate Pack C reference graph for Comfy Desk. Both stages ship bypassed (node mode 4) so opening this graph does not submit a Partner task.\n\nStage 1 scout — enable these nodes together (mode 0), queue once: model option Seedance 2.5 Draft, model id dreamina-seedance-2-5-260628, draft true, resolution 480p. Keep control_after_generate on fixed and keep the same seed integer. Save Text writes draft_task_id to a txt in the output folder. Use the same prompt and the same refs on the promote.\n\nStage 2 promote — within 7 days, paste that draft_task_id into ByteDance Seedance 2.5 Draft to Final Video, set Stage 1 back to bypass, set Stage 2 to mode 0, queue once. The final is native 1080p. Prompt, refs, duration, aspect ratio, seed, and generate_audio are inherited. There is no prompt field on the final node.\n\ngenerate_audio is false because post owns the soundtrack. Turn it on only when this take must carry its own dialogue or sound effects.\n\nA second Stage 1 queue creates a new draft. Leave Stage 1 bypassed once the preview is approved."
+        "text": "Agent-Slate Pack C field-shape record. Local-only is a hard requirement: no cloud APIs, no cloud services, no hosted inference.\n\nThese ByteDance Partner nodes stay bypassed (mode 4). The agent does not enable them and does not queue them. They are not an execution route.\n\nGenerate the one-take on local Comfy at http://127.0.0.1:8188 with workflows/packs (default-still, default-video, default-i2v, default-flf2v) through slate-engine.\n\nRecorded scout fields: model option Seedance 2.5 Draft, model id dreamina-seedance-2-5-260628, draft true, resolution 480p, control_after_generate fixed. Recorded promote field: draft_task_id on ByteDance Seedance 2.5 Draft to Final Video."
       }
     },
     {
@@ -383,7 +383,10 @@
         "api_seedance2_5_draft_t2v",
         "api_seedance2_5_draft_i2v",
         "api_seedance2_5_draft_r2v"
-      ]
+      ],
+      "localOnly": true,
+      "agentExecution": "forbidden",
+      "hardRequirement": "local-only"
     }
   },
   "version": 0.4

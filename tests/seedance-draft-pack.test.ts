@@ -70,6 +70,13 @@ describe('Seedance 2.5 Draft Pack C', () => {
       expect(final.title).toContain('ByteDance Seedance 2.5 Draft to Final Video')
       expect(wf.extra.agentSlate.modelId).toBe('dreamina-seedance-2-5-260628')
       expect(wf.extra.agentSlate.factoryPack).toBe(false)
+      expect(wf.extra.agentSlate.agentExecution).toBe('forbidden')
+      expect(wf.extra.agentSlate.localOnly).toBe(true)
+      const note = nodes.find((n) => n.type === 'MarkdownNote') as {
+        widgets_values_named: { text: string }
+      }
+      expect(note.widgets_values_named.text).toContain('Local-only is a hard requirement')
+      expect(note.widgets_values_named.text).not.toContain('queue once')
     }
   })
 
@@ -127,5 +134,36 @@ describe('Seedance 2.5 Draft Pack C', () => {
     expect(t2vApi['1'].inputs['model.resolution']).toBe('480p')
     expect(t2vApi['1'].inputs.control_after_generate).toBeUndefined()
     expect(t2vApi['4']).toBeUndefined()
+  })
+
+  it('enforces local-only Pack C routing', () => {
+    const agents = JSON.parse(readFileSync(join(root, 'AGENTS.json'), 'utf8'))
+    expect(agents.factory.localOnly.hardRequirement).toBe(true)
+    expect(agents.factory.localOnly.cloudApis).toBe(false)
+    expect(agents.factory.localOnly.cloudServices).toBe(false)
+    expect(agents.factory.localOnly.hostedInference).toBe(false)
+    expect(agents.factory.localOnly.packC.execution).toBe('local-comfy')
+    expect(agents.factory.localOnly.packC.comfy).toBe('http://127.0.0.1:8188')
+    expect(agents.factory.localOnly.packC.partnerGraphsExecutable).toBe(false)
+    const seedance = agents.whenUserSays.find(
+      (row: { intent: string }) => row.intent === 'Seedance 2.5 one-take / Draft to Final'
+    )
+    expect(seedance.do).toContain('Local-only hard requirement')
+    expect(seedance.do).toContain('http://127.0.0.1:8188')
+    expect(seedance.do).not.toContain('Comfy Desk only')
+
+    const skill = readFileSync(join(root, 'skills/slate-seedance-draft/SKILL.md'), 'utf8')
+    expect(skill).toContain('Local-only is a hard requirement')
+    expect(skill).toContain('http://127.0.0.1:8188')
+    expect(skill).toContain('default-still')
+    expect(skill).not.toContain('choose to spend')
+    expect(skill).not.toContain('Enable Stage 1')
+
+    const contract = load('contract.json')
+    expect(contract.localOnly.hardRequirement).toBe(true)
+    expect(contract.localOnly.agentExecution).toBe('forbidden')
+    expect(contract.localOnly.cloudApis).toBe(false)
+    expect(contract.localOnly.hostedInference).toBe(false)
+    expect(contract.localOnly.localComfy).toBe('http://127.0.0.1:8188')
   })
 })

@@ -54,7 +54,7 @@
     },
     {
       "intent": "Seedance 2.5 one-take / Draft to Final",
-      "do": "Skill skills/slate-seedance-draft and workflows/partner/seedance-2-5-draft. Comfy Desk only. Do not slate_film_factory or slate_run_pack this route."
+      "do": "Local-only hard requirement. Skill skills/slate-seedance-draft. Generate only with slate-engine on http://127.0.0.1:8188 and workflows/packs (default-still, default-video, default-i2v, default-flf2v). workflows/partner/seedance-2-5-draft is a field-shape record, not an execution route."
     },
     {
       "intent": "Grok brain or VO",
@@ -143,9 +143,9 @@
     "crates/slate-comfy": "Comfy client + packs",
     "crates/slate-engine": "Factory MCP + HTTP serve",
     "workflows/packs/": "Comfy API graphs (no weights)",
-    "workflows/partner/seedance-2-5-draft/": "Comfy Desk reference for Seedance 2.5 Draft→Final (not a factory pack)",
+    "workflows/partner/seedance-2-5-draft/": "Partner field-shape record for Seedance Draft→Final. Not executable. Local-only route uses workflows/packs/",
     "skills/slate-film-factory/": "Hermes Skills Hub skill (SKILL.md + references/)",
-    "skills/slate-seedance-draft/": "Hermes skill — Seedance 2.5 one-take Draft→1080p",
+    "skills/slate-seedance-draft/": "Hermes skill — Pack C one-take, local Comfy only",
     "scripts/setup.mjs": "Cross-platform from-source setup",
     "scripts/package-desktop.mjs": "Unpacked desktop app (all OS)"
   },
@@ -216,6 +216,20 @@
       "legacyUnused": "control.json"
     },
     "comfy": "http://127.0.0.1:8188",
+    "localOnly": {
+      "hardRequirement": true,
+      "cloudApis": false,
+      "cloudServices": false,
+      "hostedInference": false,
+      "packC": {
+        "skill": "skills/slate-seedance-draft",
+        "execution": "local-comfy",
+        "comfy": "http://127.0.0.1:8188",
+        "packs": ["default-still", "default-video", "default-i2v", "default-flf2v"],
+        "partnerGraphs": "workflows/partner/seedance-2-5-draft/",
+        "partnerGraphsExecutable": false
+      }
+    },
     "oneGpuOwner": true,
     "judge": { "preferred": "qwen3.5:9b", "pull": "ollama pull qwen3.5:9b", "bundled": false },
     "packs": ["default-still", "default-video", "default-i2v", "default-flf2v"],
@@ -254,6 +268,7 @@
     "shareSkill": "npm run share:skill"
   },
   "rules": [
+    "Local-only is a hard requirement for Pack C Seedance Draft→Final routing: no cloud APIs, no cloud services, no hosted inference. Generate on http://127.0.0.1:8188 and workflows/packs. Do not queue workflows/partner/seedance-2-5-draft.",
     "Do not commit unless the user asked. Do not git push unless asked. Do not rewrite git config.",
     "Do not log tokens. Never dump ~/.grok/auth.json or Cursor credentials. Do not send Cursor tokens to api.x.ai.",
     "Do not refresh Grok tokens in-process in a way that rotates refresh_token without writing it back. Expired session → grok login.",
@@ -269,9 +284,10 @@
     { "path": "docs/engine.md", "audience": "Factory operator" },
     { "path": "docs/CHANGELOG-FORK.md", "audience": "Fork delta vs upstream" },
     { "path": "skills/slate-film-factory/SKILL.md", "audience": "Hermes Skills Hub — film factory" },
-    { "path": "skills/slate-seedance-draft/SKILL.md", "audience": "Hermes — Seedance 2.5 Draft→Final (Pack C)" },
-    { "path": "docs/packs/pack-c-seedance-2-5-draft.md", "audience": "Pack C prompt + Comfy Desk contract" },
-    { "path": "workflows/partner/seedance-2-5-draft/README.md", "audience": "Comfy Desk attach contract" },
+    { "path": "skills/slate-seedance-draft/SKILL.md", "audience": "Hermes — Pack C local-only one-take" },
+    { "path": "skills/slate-seedance-draft/references/local-only.md", "audience": "Pack C local-only hard requirement" },
+    { "path": "docs/packs/pack-c-seedance-2-5-draft.md", "audience": "Pack C prompt + local route" },
+    { "path": "workflows/partner/seedance-2-5-draft/README.md", "audience": "Partner field-shape record (not executable)" },
     { "path": "docs/ATTRIBUTION.md", "audience": "Apache-2.0 credit" },
     { "path": "workflows/packs/README.md", "audience": "Comfy packs" },
     { "path": "docs/prompting-research.md", "audience": "Studio Deliver model-profile notes" }
