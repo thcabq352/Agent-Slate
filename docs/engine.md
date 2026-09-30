@@ -147,7 +147,7 @@ See `workflows/packs/`.
 
 `ready: false` if `workflow.api.json` still contains `PLACEHOLDER` / `ALIGN_ME`. Music is compile-only.
 
-Seedance 2.5 Draft→Final lives in [`workflows/partner/seedance-2-5-draft/`](../workflows/partner/seedance-2-5-draft/) for Comfy Desk. It has no `manifest.json`, so the engine pack resolver does not queue it. Skill: [`skills/slate-seedance-draft/SKILL.md`](../skills/slate-seedance-draft/SKILL.md).
+Pack C (`slate-seedance-draft`) generates only through the packs above on `http://127.0.0.1:8188`. Local-only is a hard requirement. [`workflows/partner/seedance-2-5-draft/`](../workflows/partner/seedance-2-5-draft/) has no `manifest.json` and is not an execution route (Partner nodes are hosted inference).
 
 Live LTX **T2V** one-clip on this host: `slate_video_00001_.mp4`, 356 KB, ~92 s (2026-08-12). I2V / FLF2V graphs match live Comfy `object_info` (not yet one-clip smoked).
 

@@ -87,7 +87,7 @@ SLATE_LIVE_VIDEO=1 cargo test -p slate-comfy --test live_ltx_video -- --ignored 
 
 ## Staged — Seedance 2.5 Draft (Pack C)
 
-Comfy Desk reference plus Hermes skill `slate-seedance-draft`. Scout: model option `Seedance 2.5 Draft` / `draft: true` / 480p / `dreamina-seedance-2-5-260628`. Promote: `draft_task_id` on `ByteDance2DraftToFinalVideoNode` (native 1080p). Templates `api_seedance2_5_draft_{t2v,i2v,r2v}`. Graphs ship bypassed. Not a factory pack and not queued from this repo. See [packs/pack-c-seedance-2-5-draft.md](packs/pack-c-seedance-2-5-draft.md).
+Hermes skill `slate-seedance-draft`. **Local-only is a hard requirement:** no cloud APIs, no cloud services, no hosted inference. The agent renders the one-take on local Comfy packs (`default-still`, `default-video`, `default-i2v`, `default-flf2v`). `workflows/partner/seedance-2-5-draft/` records the Partner field shape (`Seedance 2.5 Draft`, `draft_task_id`, `ByteDance2DraftToFinalVideoNode`) and sets `localOnly.agentExecution` to `forbidden`. See [packs/pack-c-seedance-2-5-draft.md](packs/pack-c-seedance-2-5-draft.md).
 
 ## Not next / not shipped
 

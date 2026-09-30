@@ -28,4 +28,4 @@ Replace the three beats with the shot. Keep the opener, the ref line, the closer
 
 ## Studio compile profile
 
-`data/model-profiles.json` id `seedance-2` stays the Dreamina section formula for Deliver. Pack C is this one-take string for the Partner Draft route. Do not rewrite that profile to force this shape onto every Seedance compile.
+`data/model-profiles.json` id `seedance-2` stays the Dreamina section formula for Deliver. Pack C is this one-take string. The agent renders it on local Comfy (`workflows/packs/`). See `local-only.md`.

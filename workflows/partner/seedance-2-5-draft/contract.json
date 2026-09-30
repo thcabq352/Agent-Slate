@@ -1,9 +1,19 @@
 {
   "pack": "C",
   "title": "Seedance 2.5 one-take Draft to Final",
-  "surface": "comfy-desk",
+  "surface": "field-shape-record",
   "factoryPack": false,
   "queueFromThisRepo": false,
+  "localOnly": {
+    "hardRequirement": true,
+    "cloudApis": false,
+    "cloudServices": false,
+    "hostedInference": false,
+    "agentExecution": "forbidden",
+    "localComfy": "http://127.0.0.1:8188",
+    "localPacks": ["default-still", "default-video", "default-i2v", "default-flf2v"],
+    "reason": "ByteDance Partner nodes are hosted inference. Pack C generation runs on local Comfy packs only."
+  },
   "modelOption": "Seedance 2.5 Draft",
   "modelId": "dreamina-seedance-2-5-260628",
   "draftFlag": true,

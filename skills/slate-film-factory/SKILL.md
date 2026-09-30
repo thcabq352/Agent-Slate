@@ -23,7 +23,7 @@ Turns a plain-language brief into one scene (4–8 shots), local Comfy takes, a 
 - Mentions **Agent-Slate**, `slate-engine`, `slate_film_factory`, Factory AD, or Comfy packs `default-still` / `default-i2v` / `default-flf2v` / `default-video`
 - Needs an assembled cut of circled or all takes
 
-**Don't use for:** studio-only prompt compile (no Comfy) — that's Electron Agent-Slate, not this skill. Don't use for HyperFrames / brand packages. Seedance 2.5 one-take Draft→1080p on Comfy Partner is skill `slate-seedance-draft`.
+**Don't use for:** studio-only prompt compile (no Comfy) — that's Electron Agent-Slate, not this skill. Don't use for HyperFrames / brand packages. Seedance 2.5 one-take prompt shape is skill `slate-seedance-draft` (local Comfy only; Partner graphs are not an execution route).
 
 ## Prerequisites
 
